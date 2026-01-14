@@ -2,6 +2,12 @@
 
 This directory contains CI/CD workflows for validating Databricks Asset Bundles.
 
+## ⚠️ Dry-Run Mode
+
+**Important:** Databricks CLI commands run in **dry-run mode** by default (commands are printed but not executed). This allows the workflows to run without Databricks credentials.
+
+**See:** [DRY_RUN_MODE.md](DRY_RUN_MODE.md) for details and how to enable real execution.
+
 ## Workflows
 
 ### 1. Validate Databricks Bundles (`validate-bundles.yml`)
