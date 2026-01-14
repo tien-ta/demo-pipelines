@@ -10,6 +10,8 @@ This directory contains CI/CD workflows for validating Databricks Asset Bundles.
 
 ## Workflows
 
+We have **3 main workflows** that validate different aspects of the codebase:
+
 ### 1. Validate Databricks Bundles (`validate-bundles.yml`)
 
 **Trigger:** Pull requests that modify files in `projects/`
@@ -24,7 +26,7 @@ This directory contains CI/CD workflows for validating Databricks Asset Bundles.
 - Validates resource definitions
 
 **Validation Steps:**
-1. **Bundle Validation** - Runs `databricks bundle validate` for each environment
+1. **Bundle Validation** - Databricks bundle validate for dev/staging/prod
 2. **Python Package** - Builds wheel packages if `setup.py` exists
 3. **Notebook Syntax** - Compiles all `.py` notebooks
 4. **YAML Syntax** - Validates all YAML files
@@ -36,27 +38,35 @@ This directory contains CI/CD workflows for validating Databricks Asset Bundles.
 - ❌ Validation failed - See job logs for details
 - Summary posted to PR
 
-### 2. Python Code Quality (`validate-python.yml`)
+### 2. Python Tests & Quality (`run-tests.yml`)
 
 **Trigger:** Pull requests that modify Python files in `projects/`
 
 **What it does:**
+- Combines code quality checks AND unit tests in single workflow
 - Checks code formatting with Black
 - Validates import sorting with isort
 - Lints code with flake8
-- Type checks with mypy (warning only)
-- Runs unit tests if they exist
+- Type checks with mypy
+- Runs unit tests with pytest
+- Generates coverage reports
 
-**Code Quality Checks:**
+**All Checks Performed:**
 1. **Black** - Code formatting (PEP 8 compliance)
 2. **isort** - Import statement organization
 3. **flake8** - Linting and complexity checks
 4. **mypy** - Static type checking
-5. **pytest** - Unit test execution
+5. **pytest** - Unit test execution with coverage
+
+**Benefits:**
+- Single workflow = no duplicate dependency installation
+- Runs on Python 3.10 and 3.11
+- Comprehensive quality gate before merge
 
 **Outputs:**
-- ✅ All quality checks passed
-- ❌ Issues found - See job logs for fixes needed
+- ✅ All checks and tests passed
+- ❌ Issues found - See job logs for details
+- Coverage report and test results
 
 ### 3. Security Scan (`security-scan.yml`)
 

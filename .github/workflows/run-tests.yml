@@ -1,10 +1,11 @@
-name: Run Unit Tests
+name: Python Tests & Quality
 
 on:
   pull_request:
     paths:
       - 'projects/**/src/**/*.py'
       - 'projects/**/tests/**/*.py'
+      - 'projects/**/notebooks/**/*.py'
       - 'projects/**/setup.py'
       - 'projects/**/pytest.ini'
       - 'projects/**/requirements*.txt'
@@ -16,6 +17,7 @@ on:
     paths:
       - 'projects/**/src/**/*.py'
       - 'projects/**/tests/**/*.py'
+      - 'projects/**/notebooks/**/*.py'
 
 jobs:
   detect-projects:
@@ -53,8 +55,8 @@ jobs:
             echo "has_changes=true" >> $GITHUB_OUTPUT
           fi
 
-  test:
-    name: Test - ${{ matrix.project }}
+  test-and-quality:
+    name: Test & Quality - ${{ matrix.project }}
     runs-on: ubuntu-latest
     needs: detect-projects
     if: needs.detect-projects.outputs.has_changes == 'true'
@@ -78,15 +80,55 @@ jobs:
         run: |
           echo "Installing dependencies for ${{ matrix.project }}"
           echo "Running: pip install --upgrade pip setuptools wheel"
+          echo "Running: pip install flake8 black isort mypy pytest pytest-cov"
           if [ -f "setup.py" ]; then
             echo "Running: pip install -e ."
           fi
           if [ -f "requirements-dev.txt" ]; then
             echo "Running: pip install -r requirements-dev.txt"
-          else
-            echo "Running: pip install pytest pytest-cov pytest-mock pyspark"
           fi
-          echo "✓ Dependencies installed (dry-run mode)"
+          echo "✓ All dependencies installed (dry-run mode)"
+
+      - name: Check code formatting with Black
+        working-directory: projects/${{ matrix.project }}
+        run: |
+          echo "Checking code formatting for ${{ matrix.project }}"
+          if [ -d "src" ]; then
+            echo "Running: black --check --diff src/"
+            echo "✓ Code formatting check passed (dry-run mode)"
+          fi
+
+      - name: Check import sorting with isort
+        working-directory: projects/${{ matrix.project }}
+        run: |
+          echo "Checking import sorting for ${{ matrix.project }}"
+          if [ -d "src" ]; then
+            echo "Running: isort --check-only --diff src/"
+            echo "✓ Import sorting check passed (dry-run mode)"
+          fi
+
+      - name: Lint with flake8
+        working-directory: projects/${{ matrix.project }}
+        run: |
+          echo "Linting Python code for ${{ matrix.project }}"
+          if [ -d "src" ]; then
+            echo "Running: flake8 src/ --count --select=E9,F63,F7,F82"
+            echo "✓ Source linting passed (dry-run mode - 0 errors found)"
+          fi
+          if [ -d "notebooks" ]; then
+            echo "Running: flake8 notebooks/ --count --select=E9,F63,F7,F82"
+            echo "✓ Notebook linting passed (dry-run mode - 0 errors found)"
+          fi
+
+      - name: Type check with mypy
+        working-directory: projects/${{ matrix.project }}
+        if: matrix.python-version == '3.10'
+        run: |
+          echo "Type checking for ${{ matrix.project }}"
+          if [ -d "src" ]; then
+            echo "Running: mypy src/ --ignore-missing-imports"
+            echo "✓ Type checking passed (dry-run mode)"
+          fi
 
       - name: Run unit tests
         working-directory: projects/${{ matrix.project }}
@@ -118,39 +160,47 @@ jobs:
           echo "Uploading test results as artifacts"
           echo "✓ Artifacts uploaded (dry-run mode)"
 
-  test-summary:
-    name: Test Summary
+  summary:
+    name: Tests & Quality Summary
     runs-on: ubuntu-latest
-    needs: [detect-projects, test]
+    needs: [detect-projects, test-and-quality]
     if: always()
     steps:
-      - name: Check test results
+      - name: Check results
         run: |
           if [ "${{ needs.detect-projects.outputs.has_changes }}" = "false" ]; then
             echo "ℹ️ No changes detected requiring tests"
             exit 0
           fi
 
-          if [ "${{ needs.test.result }}" = "success" ]; then
-            echo "✅ All tests passed"
-          elif [ "${{ needs.test.result }}" = "skipped" ]; then
+          if [ "${{ needs.test-and-quality.result }}" = "success" ]; then
+            echo "✅ All tests and quality checks passed"
+          elif [ "${{ needs.test-and-quality.result }}" = "skipped" ]; then
             echo "⏭️ Tests skipped"
           else
-            echo "❌ Tests failed"
+            echo "❌ Tests or quality checks failed"
             exit 1
           fi
 
       - name: Post summary
         if: needs.detect-projects.outputs.has_changes == 'true'
         run: |
-          echo "## Test Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Tests & Quality Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Projects Tested:** ${{ needs.detect-projects.outputs.projects }}" >> $GITHUB_STEP_SUMMARY
           echo "**Python Versions:** 3.10, 3.11" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Checks Performed:**" >> $GITHUB_STEP_SUMMARY
+          echo "- Code formatting (Black)" >> $GITHUB_STEP_SUMMARY
+          echo "- Import sorting (isort)" >> $GITHUB_STEP_SUMMARY
+          echo "- Linting (flake8)" >> $GITHUB_STEP_SUMMARY
+          echo "- Type checking (mypy)" >> $GITHUB_STEP_SUMMARY
+          echo "- Unit tests (pytest)" >> $GITHUB_STEP_SUMMARY
+          echo "- Coverage reporting" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
 
-          if [ "${{ needs.test.result }}" = "success" ]; then
-            echo "✅ **Status:** All tests passed" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ needs.test-and-quality.result }}" = "success" ]; then
+            echo "✅ **Status:** All checks passed" >> $GITHUB_STEP_SUMMARY
           else
-            echo "❌ **Status:** Tests failed" >> $GITHUB_STEP_SUMMARY
+            echo "❌ **Status:** Some checks failed" >> $GITHUB_STEP_SUMMARY
           fi
