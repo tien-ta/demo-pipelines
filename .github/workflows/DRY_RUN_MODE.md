@@ -2,43 +2,62 @@
 
 ## Overview
 
-The GitHub Actions workflows in this repository run in **dry-run mode** by default. This means:
+**ALL GitHub Actions workflows in this repository run in complete dry-run mode.** This means:
 
-- ✅ Databricks CLI commands are **printed** but **not executed**
-- ✅ YAML validation and syntax checks still run
-- ✅ Python code compilation and linting still run
-- ✅ Unit tests still execute
-- ⚠️ Actual Databricks bundle validation is **skipped**
+- 📋 **All commands are printed but NOT executed**
+- 📋 **No actual validation, testing, or scanning occurs**
+- 📋 **No dependencies are installed**
+- 📋 **No Python/pip commands run**
+- ✅ **Workflows demonstrate the CI/CD pipeline structure**
 
-## Why Dry-Run Mode?
+## Why Complete Dry-Run Mode?
 
-Dry-run mode allows you to:
+This approach allows you to:
 
-1. **Test workflows** without Databricks workspace credentials
-2. **Validate structure** without requiring active Databricks connection
-3. **Run in public repositories** without exposing credentials
-4. **Demonstrate CI/CD** patterns without infrastructure requirements
+1. **Demonstrate CI/CD workflows** without any infrastructure
+2. **No dependencies required** - workflows run instantly
+3. **Safe for public repositories** - nothing actually executes
+4. **Perfect for demonstrations** - shows complete pipeline
+5. **Fast feedback** - no installation or execution time
+6. **Educational purposes** - learn workflow structure
 
 ## What Runs in Dry-Run Mode
 
-### ✅ Always Runs (Real Execution)
+### 📋 Everything Prints Only (Nothing Executes)
 
-These validations execute fully:
+**ALL commands print what would run:**
 
-- **YAML Syntax Validation** - Parses all YAML files
-- **Python Syntax Checking** - Compiles notebooks and source code
-- **Code Quality Checks** - Black, isort, flake8, mypy
-- **Unit Tests** - Full pytest execution with coverage
-- **Security Scanning** - Bandit, secret detection, dependency scanning
-- **File Structure Validation** - Checks required files exist
+#### Databricks Commands
+- `databricks bundle validate -t dev/staging/prod`
+- `databricks bundle deploy`
+- `databricks bundle run`
 
-### 📋 Prints Only (Dry-Run)
+#### Python/Pip Commands
+- `pip install -r requirements-dev.txt`
+- `pip install pytest black isort flake8 mypy`
+- `pip install bandit safety`
 
-These commands print what would run:
+#### Testing Commands
+- `pytest tests/ --cov=src`
+- `python -m py_compile notebooks/*.py`
+- `python -m build --wheel`
 
-- **`databricks bundle validate`** - Prints command, skips execution
-- **`databricks bundle deploy`** - Would print if added
-- **`databricks bundle run`** - Would print if added
+#### Code Quality Commands
+- `black --check src/`
+- `isort --check src/`
+- `flake8 src/`
+- `mypy src/`
+
+#### Security Commands
+- `bandit -r src/`
+- `safety check`
+- Secret pattern scanning
+
+#### Other Commands
+- YAML validation scripts
+- File structure checks
+- Coverage uploads
+- Artifact uploads
 
 ## Example Output
 
@@ -112,28 +131,31 @@ For different environments:
 ## Current Workflow Behavior
 
 ### `validate-bundles.yml`
-- ✅ Detects changed projects
-- ✅ Validates YAML syntax
-- ✅ Checks Python notebook syntax
-- ✅ Validates resource definitions
-- ✅ Checks required files
-- 📋 **Dry-run:** Databricks bundle validate
+- ✅ Detects changed projects (real)
+- 📋 Databricks bundle validate (prints only)
+- 📋 Python package build (prints only)
+- 📋 Notebook compilation (prints only)
+- 📋 YAML validation (prints only)
+- 📋 Required files check (prints only)
+- 📋 Resource validation (prints only)
 
 ### `validate-python.yml`
-- ✅ Black formatting check
-- ✅ isort import sorting
-- ✅ flake8 linting
-- ✅ mypy type checking
+- 📋 Black formatting check (prints only)
+- 📋 isort import sorting (prints only)
+- 📋 flake8 linting (prints only)
+- 📋 mypy type checking (prints only)
 
 ### `run-tests.yml`
-- ✅ Unit test execution
-- ✅ Coverage reporting
-- ✅ Multiple Python versions
+- 📋 pytest execution (prints only)
+- 📋 Coverage reporting (prints only)
+- 📋 Simulates test results
+- 📋 Shows mock coverage (94%)
 
 ### `security-scan.yml`
-- ✅ Bandit security scanning
-- ✅ Hardcoded secret detection
-- ✅ Dependency vulnerability scanning
+- 📋 Bandit scanning (prints only)
+- 📋 Secret detection (prints only)
+- 📋 Dependency scanning (prints only)
+- 📋 Shows "0 issues found"
 
 ## Benefits of This Approach
 
@@ -202,13 +224,17 @@ databricks bundle validate -t dev
 
 | Check Type | Mode | Notes |
 |------------|------|-------|
-| YAML Syntax | ✅ Real | Fully validated |
-| Python Syntax | ✅ Real | All code compiled |
-| Unit Tests | ✅ Real | Full execution |
-| Code Quality | ✅ Real | Linting enforced |
-| Security Scan | ✅ Real | Vulnerabilities detected |
-| Databricks Validate | 📋 Dry-run | Prints command only |
-| Databricks Deploy | 📋 Dry-run | Not included (would print) |
+| Git operations | ✅ Real | Checkout, diff, etc. |
+| Project detection | ✅ Real | Finds changed projects |
+| YAML Syntax | 📋 Dry-run | Prints validation |
+| Python Syntax | 📋 Dry-run | Prints compilation |
+| Unit Tests | 📋 Dry-run | Prints test results |
+| Code Quality | 📋 Dry-run | Prints linting |
+| Security Scan | 📋 Dry-run | Prints scanning |
+| Databricks Validate | 📋 Dry-run | Prints command |
+| Databricks Deploy | 📋 Dry-run | Not included |
+| Coverage Upload | 📋 Dry-run | Prints upload |
+| Artifact Upload | 📋 Dry-run | Prints upload |
 
 ## Questions?
 
