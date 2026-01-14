@@ -15,7 +15,7 @@ Each directory in `projects/` contains a complete Databricks bundle for a specif
 
 ## Projects
 
-### 1. High-Risk WiFi Detection (`projects/high-risk-wifi/`)
+### 1. High-Risk WiFi Detection (`projects/high_risk_wifi/`)
 ML pipeline for identifying high-risk WiFi connections based on security, signal, and contextual features.
 
 **Key Components:**
@@ -29,7 +29,7 @@ ML pipeline for identifying high-risk WiFi connections based on security, signal
 - Network risk assessment
 - User safety alerts
 
-### 2. Suspicious Location Detection (`projects/suspicious-location/`)
+### 2. Suspicious Location Detection (`projects/suspicious_location/`)
 Anomaly detection pipeline for identifying suspicious location patterns and impossible travel.
 
 **Key Components:**
@@ -53,13 +53,13 @@ demo-pipelines/
 │   ├── deployment-guide.md     # Deployment instructions
 │   └── best-practices.md       # Best practices
 └── projects/                    # Individual project bundles
-    ├── high-risk-wifi/
+    ├── high_risk_wifi/
     │   ├── databricks.yml      # Bundle configuration
     │   ├── resources/          # Resource definitions (YAML)
     │   ├── notebooks/          # Databricks notebooks
     │   ├── src/                # Python source code
     │   └── README.md           # Project documentation
-    └── suspicious-location/
+    └── suspicious_location/
         ├── databricks.yml
         ├── resources/
         ├── notebooks/
@@ -78,7 +78,7 @@ demo-pipelines/
 
 ```bash
 # Navigate to a project
-cd projects/high-risk-wifi
+cd projects/high_risk_wifi
 
 # Deploy to development
 databricks bundle deploy -t dev

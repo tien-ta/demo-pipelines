@@ -15,8 +15,8 @@ jobs:
       fail-fast: false
       matrix:
         project:
-          - high-risk-wifi
-          - suspicious-location
+          - high_risk_wifi
+          - suspicious_location
 
     steps:
       - name: Checkout code

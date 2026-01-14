@@ -37,7 +37,7 @@ jobs:
         run: |
           # Default to all projects if on main/master/develop
           if [[ "${{ github.event_name }}" == "push" ]]; then
-            PROJECTS='["high-risk-wifi","suspicious-location"]'
+            PROJECTS='["high_risk_wifi","suspicious_location"]'
           else
             # Get changed files in PR
             CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)

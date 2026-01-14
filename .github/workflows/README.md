@@ -169,8 +169,8 @@ Workflows use matrix strategy to run in parallel:
 strategy:
   matrix:
     project:
-      - high-risk-wifi
-      - suspicious-location
+      - high_risk_wifi
+      - suspicious_location
 ```
 
 Add new projects to the matrix when created.

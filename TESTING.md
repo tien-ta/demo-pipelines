@@ -7,7 +7,7 @@ This document provides quick reference for running tests in this repository.
 ### Run Tests for a Project
 
 ```bash
-cd projects/high-risk-wifi
+cd projects/high_risk_wifi
 pip install -r requirements-dev.txt
 pytest tests/
 ```
@@ -15,7 +15,7 @@ pytest tests/
 ### Run All Tests with Coverage
 
 ```bash
-cd projects/high-risk-wifi
+cd projects/high_risk_wifi
 pytest tests/ --cov=src --cov-report=term-missing --cov-report=html
 ```
 
@@ -29,7 +29,7 @@ open htmlcov/index.html
 
 ### High-Risk WiFi Detection
 
-**Location:** `projects/high-risk-wifi/tests/`
+**Location:** `projects/high_risk_wifi/tests/`
 
 **Test Modules:**
 - `test_features.py` - Feature engineering functions
@@ -37,7 +37,7 @@ open htmlcov/index.html
 
 **Run Tests:**
 ```bash
-cd projects/high-risk-wifi
+cd projects/high_risk_wifi
 pytest tests/ -v
 ```
 
@@ -48,7 +48,7 @@ pytest tests/ --cov=src --cov-report=term-missing
 
 ### Suspicious Location Detection
 
-**Location:** `projects/suspicious-location/tests/`
+**Location:** `projects/suspicious_location/tests/`
 
 **Test Modules:**
 - `test_geo_utils.py` - Geographic calculations
@@ -56,7 +56,7 @@ pytest tests/ --cov=src --cov-report=term-missing
 
 **Run Tests:**
 ```bash
-cd projects/suspicious-location
+cd projects/suspicious_location
 pytest tests/ -v
 ```
 

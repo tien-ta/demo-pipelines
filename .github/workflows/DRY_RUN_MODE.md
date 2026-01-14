@@ -69,7 +69,7 @@ echo "✓ Bundle validation (dry-run mode - no actual validation performed)"
 
 ### Output in GitHub Actions
 ```
-Validating bundle configuration for high-risk-wifi (dev environment)
+Validating bundle configuration for high_risk_wifi (dev environment)
 Running: databricks bundle validate -t dev
 ✓ Bundle validation (dry-run mode - no actual validation performed)
 ```
@@ -216,7 +216,7 @@ curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.s
 databricks configure
 
 # Test bundle validation
-cd projects/high-risk-wifi
+cd projects/high_risk_wifi
 databricks bundle validate -t dev
 ```
 

@@ -35,7 +35,7 @@ jobs:
 
 # Use descriptive, consistent names
 model_name: high_risk_wifi_classifier
-experiment_path: /Shared/high-risk-wifi/experiments
+experiment_path: /Shared/high_risk_wifi/experiments
 ```
 
 **DON'T:**

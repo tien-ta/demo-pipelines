@@ -466,8 +466,8 @@ pip install -e .
 ### Examples
 
 See existing tests:
-- `projects/high-risk-wifi/tests/`
-- `projects/suspicious-location/tests/`
+- `projects/high_risk_wifi/tests/`
+- `projects/suspicious_location/tests/`
 
 ## Getting Help
 

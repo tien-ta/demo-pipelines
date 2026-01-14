@@ -83,7 +83,7 @@ Add users to appropriate groups via workspace admin panel.
 
 ```bash
 # Navigate to project
-cd projects/high-risk-wifi
+cd projects/high_risk_wifi
 
 # Validate configuration
 databricks bundle validate -t dev
@@ -104,10 +104,10 @@ databricks bundle deploy -t dev
 
 ```bash
 # List deployed resources
-databricks workspace ls ~/.bundle/high-risk-wifi/dev
+databricks workspace ls ~/.bundle/high_risk_wifi/dev
 
 # Check job creation
-databricks jobs list --profile dev | grep high-risk-wifi
+databricks jobs list --profile dev | grep high_risk_wifi
 
 # View bundle summary
 databricks bundle summary -t dev
@@ -142,7 +142,7 @@ targets:
       catalog: staging_catalog
       schema: high_risk_wifi_staging
     run_as:
-      service_principal_name: sp-high-risk-wifi-staging
+      service_principal_name: sp-high_risk_wifi-staging
 ```
 
 ### Deploy to Staging
@@ -269,7 +269,7 @@ jobs:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
         run: |
-          cd projects/high-risk-wifi
+          cd projects/high_risk_wifi
           databricks bundle validate -t dev
 
   deploy-staging:
@@ -284,7 +284,7 @@ jobs:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_STAGING }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_STAGING }}
         run: |
-          cd projects/high-risk-wifi
+          cd projects/high_risk_wifi
           databricks bundle deploy -t staging
 
   deploy-prod:
@@ -300,7 +300,7 @@ jobs:
           DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST_PROD }}
           DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN_PROD }}
         run: |
-          cd projects/high-risk-wifi
+          cd projects/high_risk_wifi
           databricks bundle deploy -t prod
 ```
 
@@ -314,7 +314,7 @@ stages:
   - deploy-prod
 
 variables:
-  PROJECT_DIR: projects/high-risk-wifi
+  PROJECT_DIR: projects/high_risk_wifi
 
 validate:
   stage: validate
@@ -401,7 +401,7 @@ databricks serving-endpoints update --name <endpoint-name> --enable-routing fals
 databricks bundle summary -t prod
 
 # List workspace files
-databricks workspace ls /Shared/.bundle/high-risk-wifi/prod
+databricks workspace ls /Shared/.bundle/high_risk_wifi/prod
 ```
 
 ### Monitor Jobs
@@ -433,10 +433,10 @@ for model in models:
 
 ```bash
 # Get endpoint status
-databricks serving-endpoints get --name high-risk-wifi-prod
+databricks serving-endpoints get --name high_risk_wifi-prod
 
 # View endpoint metrics (via workspace UI)
-# https://your-workspace.cloud.databricks.com/#mlflow/endpoints/high-risk-wifi-prod
+# https://your-workspace.cloud.databricks.com/#mlflow/endpoints/high_risk_wifi-prod
 ```
 
 ## Troubleshooting

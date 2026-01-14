@@ -18,8 +18,8 @@
 
 <!-- List the projects affected by this PR -->
 
-- [ ] `high-risk-wifi`
-- [ ] `suspicious-location`
+- [ ] `high_risk_wifi`
+- [ ] `suspicious_location`
 - [ ] Other: ___________
 
 ## Changes Made
