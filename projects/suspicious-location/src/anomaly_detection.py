@@ -23,6 +23,7 @@ class LocationAnomalyDetector:
             n_estimators: Number of trees in the forest
             random_state: Random seed for reproducibility
         """
+        print(f"Initializing LocationAnomalyDetector with contamination: {contamination}, n_estimators: {n_estimators}, random_state: {random_state}")
         self.contamination = contamination
         self.n_estimators = n_estimators
         self.random_state = random_state
