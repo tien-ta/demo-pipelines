@@ -1,0 +1,108 @@
+name: Python Code Quality
+
+on:
+  pull_request:
+    paths:
+      - 'projects/**/src/**/*.py'
+      - 'projects/**/notebooks/**/*.py'
+      - 'projects/**/setup.py'
+
+jobs:
+  lint-and-test:
+    name: Lint & Test - ${{ matrix.project }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - high-risk-wifi
+          - suspicious-location
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install dependencies
+        working-directory: projects/${{ matrix.project }}
+        run: |
+          python -m pip install --upgrade pip
+
+          # Install linting tools
+          pip install flake8 black isort mypy
+
+          # Install project dependencies if setup.py exists
+          if [ -f "setup.py" ]; then
+            pip install -e .
+          fi
+
+      - name: Check code formatting with Black
+        working-directory: projects/${{ matrix.project }}
+        run: |
+          echo "Checking code formatting for ${{ matrix.project }}"
+
+          # Check src directory
+          if [ -d "src" ]; then
+            black --check --diff src/ || {
+              echo "::error::Code formatting issues found. Run 'black src/' to fix"
+              exit 1
+            }
+          fi
+
+      - name: Check import sorting with isort
+        working-directory: projects/${{ matrix.project }}
+        run: |
+          echo "Checking import sorting for ${{ matrix.project }}"
+
+          if [ -d "src" ]; then
+            isort --check-only --diff src/ || {
+              echo "::error::Import sorting issues found. Run 'isort src/' to fix"
+              exit 1
+            }
+          fi
+
+      - name: Lint with flake8
+        working-directory: projects/${{ matrix.project }}
+        run: |
+          echo "Linting Python code for ${{ matrix.project }}"
+
+          # Lint src directory
+          if [ -d "src" ]; then
+            flake8 src/ --count --select=E9,F63,F7,F82 --show-source --statistics
+            flake8 src/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+          fi
+
+          # Lint notebooks directory
+          if [ -d "notebooks" ]; then
+            flake8 notebooks/ --count --select=E9,F63,F7,F82 --show-source --statistics
+            flake8 notebooks/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+          fi
+
+      - name: Type check with mypy
+        working-directory: projects/${{ matrix.project }}
+        continue-on-error: true
+        run: |
+          echo "Type checking for ${{ matrix.project }}"
+
+          if [ -d "src" ]; then
+            mypy src/ --ignore-missing-imports || echo "::warning::Type checking found issues"
+          fi
+
+      - name: Run unit tests
+        working-directory: projects/${{ matrix.project }}
+        if: hashFiles('tests/**/*.py') != ''
+        run: |
+          echo "Running unit tests for ${{ matrix.project }}"
+
+          pip install pytest pytest-cov
+
+          if [ -d "tests" ]; then
+            pytest tests/ -v --cov=src/ --cov-report=term-missing || {
+              echo "::error::Unit tests failed"
+              exit 1
+            }
+          fi

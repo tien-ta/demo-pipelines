@@ -1,0 +1,256 @@
+name: Validate Databricks Bundles
+
+on:
+  pull_request:
+    paths:
+      - 'projects/**'
+    types:
+      - opened
+      - synchronize
+      - reopened
+
+jobs:
+  detect-changed-projects:
+    name: Detect Changed Projects
+    runs-on: ubuntu-latest
+    outputs:
+      projects: ${{ steps.set-projects.outputs.projects }}
+      has_changes: ${{ steps.set-projects.outputs.has_changes }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed projects
+        id: set-projects
+        run: |
+          # Get list of changed files
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
+
+          # Find unique project directories that have changes
+          PROJECTS=$(echo "$CHANGED_FILES" | grep '^projects/' | cut -d'/' -f2 | sort -u | jq -R -s -c 'split("\n")[:-1]')
+
+          echo "Changed projects: $PROJECTS"
+          echo "projects=$PROJECTS" >> $GITHUB_OUTPUT
+
+          # Check if there are any changes
+          if [ "$PROJECTS" = "[]" ]; then
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+  validate-bundle:
+    name: Validate Bundle - ${{ matrix.project }}
+    runs-on: ubuntu-latest
+    needs: detect-changed-projects
+    if: needs.detect-changed-projects.outputs.has_changes == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJson(needs.detect-changed-projects.outputs.projects) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Databricks CLI
+        run: |
+          curl -fsSL https://raw.githubusercontent.com/databricks/setup-cli/main/install.sh | sh
+          databricks --version
+
+      - name: Validate bundle syntax (dev)
+        working-directory: projects/${{ matrix.project }}
+        run: |
+          echo "Validating bundle configuration for ${{ matrix.project }} (dev environment)"
+          databricks bundle validate -t dev || {
+            echo "::error::Bundle validation failed for ${{ matrix.project }} in dev environment"
+            exit 1
+          }
+
+      - name: Validate bundle syntax (staging)
+        working-directory: projects/${{ matrix.project }}
+        run: |
+          echo "Validating bundle configuration for ${{ matrix.project }} (staging environment)"
+          databricks bundle validate -t staging || {
+            echo "::error::Bundle validation failed for ${{ matrix.project }} in staging environment"
+            exit 1
+          }
+
+      - name: Validate bundle syntax (prod)
+        working-directory: projects/${{ matrix.project }}
+        run: |
+          echo "Validating bundle configuration for ${{ matrix.project }} (prod environment)"
+          databricks bundle validate -t prod || {
+            echo "::error::Bundle validation failed for ${{ matrix.project }} in prod environment"
+            exit 1
+          }
+
+      - name: Check Python package setup
+        working-directory: projects/${{ matrix.project }}
+        if: hashFiles('setup.py') != ''
+        run: |
+          echo "Validating Python package setup for ${{ matrix.project }}"
+          python -m pip install --upgrade pip
+          pip install build
+          python -m build --wheel --outdir dist/ || {
+            echo "::error::Python package build failed for ${{ matrix.project }}"
+            exit 1
+          }
+
+      - name: Validate Python notebooks
+        working-directory: projects/${{ matrix.project }}
+        run: |
+          echo "Checking Python notebook syntax for ${{ matrix.project }}"
+
+          if [ -d "notebooks" ]; then
+            for notebook in notebooks/*.py; do
+              if [ -f "$notebook" ]; then
+                echo "Checking $notebook"
+                python -m py_compile "$notebook" || {
+                  echo "::error::Syntax error in $notebook"
+                  exit 1
+                }
+              fi
+            done
+          fi
+
+      - name: Validate YAML syntax
+        working-directory: projects/${{ matrix.project }}
+        run: |
+          echo "Validating YAML files for ${{ matrix.project }}"
+          pip install pyyaml
+
+          python << 'EOF'
+          import yaml
+          import sys
+          from pathlib import Path
+
+          errors = []
+          yaml_files = list(Path('.').rglob('*.yml')) + list(Path('.').rglob('*.yaml'))
+
+          for yaml_file in yaml_files:
+              try:
+                  with open(yaml_file, 'r') as f:
+                      yaml.safe_load(f)
+                  print(f"✓ {yaml_file}")
+              except yaml.YAMLError as e:
+                  errors.append(f"{yaml_file}: {e}")
+                  print(f"✗ {yaml_file}: {e}")
+
+          if errors:
+              print("\n::error::YAML validation errors found")
+              for error in errors:
+                  print(f"::error::{error}")
+              sys.exit(1)
+          EOF
+
+      - name: Check required files
+        working-directory: projects/${{ matrix.project }}
+        run: |
+          echo "Checking required files for ${{ matrix.project }}"
+
+          REQUIRED_FILES=(
+            "databricks.yml"
+            "README.md"
+          )
+
+          MISSING_FILES=()
+
+          for file in "${REQUIRED_FILES[@]}"; do
+            if [ ! -f "$file" ]; then
+              MISSING_FILES+=("$file")
+            fi
+          done
+
+          if [ ${#MISSING_FILES[@]} -gt 0 ]; then
+            echo "::error::Missing required files: ${MISSING_FILES[*]}"
+            exit 1
+          fi
+
+          echo "✓ All required files present"
+
+      - name: Validate resource definitions
+        working-directory: projects/${{ matrix.project }}
+        run: |
+          echo "Validating resource definitions for ${{ matrix.project }}"
+
+          python << 'EOF'
+          import yaml
+          import sys
+          from pathlib import Path
+
+          # Check if resources directory exists
+          resources_dir = Path('resources')
+          if not resources_dir.exists():
+              print("::warning::No resources directory found")
+              sys.exit(0)
+
+          resource_files = list(resources_dir.glob('*.yml')) + list(resources_dir.glob('*.yaml'))
+
+          if not resource_files:
+              print("::warning::No resource files found in resources/")
+              sys.exit(0)
+
+          errors = []
+          for resource_file in resource_files:
+              try:
+                  with open(resource_file, 'r') as f:
+                      config = yaml.safe_load(f)
+
+                  # Check that it has resources key
+                  if config and 'resources' not in config:
+                      errors.append(f"{resource_file}: Missing 'resources' top-level key")
+
+                  print(f"✓ {resource_file}")
+              except Exception as e:
+                  errors.append(f"{resource_file}: {e}")
+
+          if errors:
+              print("\n::error::Resource validation errors")
+              for error in errors:
+                  print(f"::error::{error}")
+              sys.exit(1)
+
+          print(f"✓ Validated {len(resource_files)} resource files")
+          EOF
+
+  summary:
+    name: Validation Summary
+    runs-on: ubuntu-latest
+    needs: [detect-changed-projects, validate-bundle]
+    if: always()
+    steps:
+      - name: Check validation results
+        run: |
+          if [ "${{ needs.detect-changed-projects.outputs.has_changes }}" = "false" ]; then
+            echo "ℹ️ No changes detected in projects/ directory"
+            exit 0
+          fi
+
+          if [ "${{ needs.validate-bundle.result }}" = "success" ]; then
+            echo "✅ All bundle validations passed"
+          else
+            echo "❌ Bundle validation failed"
+            exit 1
+          fi
+
+      - name: Post summary
+        if: needs.detect-changed-projects.outputs.has_changes == 'true'
+        run: |
+          echo "## Validation Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Changed Projects:** ${{ needs.detect-changed-projects.outputs.projects }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ needs.validate-bundle.result }}" = "success" ]; then
+            echo "✅ **Status:** All validations passed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "❌ **Status:** Validation failed" >> $GITHUB_STEP_SUMMARY
+          fi

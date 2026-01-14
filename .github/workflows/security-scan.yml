@@ -1,0 +1,100 @@
+name: Security Scan
+
+on:
+  pull_request:
+    paths:
+      - 'projects/**/*.py'
+      - 'projects/**/requirements.txt'
+      - 'projects/**/setup.py'
+
+jobs:
+  security-scan:
+    name: Security Scan - ${{ matrix.project }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project:
+          - high-risk-wifi
+          - suspicious-location
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install security tools
+        run: |
+          pip install bandit safety
+
+      - name: Run Bandit security scan
+        working-directory: projects/${{ matrix.project }}
+        run: |
+          echo "Running Bandit security scan for ${{ matrix.project }}"
+
+          if [ -d "src" ]; then
+            bandit -r src/ -f json -o bandit-report.json || true
+            bandit -r src/ -ll || {
+              echo "::warning::Security issues found in src/"
+            }
+          fi
+
+          if [ -d "notebooks" ]; then
+            bandit -r notebooks/ -ll || {
+              echo "::warning::Security issues found in notebooks/"
+            }
+          fi
+
+      - name: Check for secrets in code
+        working-directory: projects/${{ matrix.project }}
+        run: |
+          echo "Checking for hardcoded secrets in ${{ matrix.project }}"
+
+          # Check for common secret patterns
+          SECRET_PATTERNS=(
+            "password\s*=\s*['\"][^'\"]+['\"]"
+            "api[_-]?key\s*=\s*['\"][^'\"]+['\"]"
+            "secret\s*=\s*['\"][^'\"]+['\"]"
+            "token\s*=\s*['\"][^'\"]+['\"]"
+            "aws_access_key_id"
+            "aws_secret_access_key"
+          )
+
+          FOUND_SECRETS=0
+
+          for pattern in "${SECRET_PATTERNS[@]}"; do
+            if grep -rniE "$pattern" src/ notebooks/ 2>/dev/null | grep -v "dbutils.secrets.get"; then
+              echo "::warning::Potential hardcoded secret found matching pattern: $pattern"
+              FOUND_SECRETS=1
+            fi
+          done
+
+          if [ $FOUND_SECRETS -eq 1 ]; then
+            echo "::error::Hardcoded secrets detected. Use dbutils.secrets.get() or environment variables instead"
+            exit 1
+          fi
+
+          echo "✓ No hardcoded secrets detected"
+
+      - name: Check dependency vulnerabilities
+        working-directory: projects/${{ matrix.project }}
+        continue-on-error: true
+        run: |
+          echo "Checking dependencies for known vulnerabilities in ${{ matrix.project }}"
+
+          if [ -f "setup.py" ]; then
+            pip install -e .
+            safety check --json || echo "::warning::Dependency vulnerabilities found"
+          fi
+
+      - name: Upload Bandit report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bandit-report-${{ matrix.project }}
+          path: projects/${{ matrix.project }}/bandit-report.json
+          if-no-files-found: ignore
