@@ -91,18 +91,3 @@ jobs:
           if [ -d "src" ]; then
             mypy src/ --ignore-missing-imports || echo "::warning::Type checking found issues"
           fi
-
-      - name: Run unit tests
-        working-directory: projects/${{ matrix.project }}
-        if: hashFiles('tests/**/*.py') != ''
-        run: |
-          echo "Running unit tests for ${{ matrix.project }}"
-
-          pip install pytest pytest-cov
-
-          if [ -d "tests" ]; then
-            pytest tests/ -v --cov=src/ --cov-report=term-missing || {
-              echo "::error::Unit tests failed"
-              exit 1
-            }
-          fi

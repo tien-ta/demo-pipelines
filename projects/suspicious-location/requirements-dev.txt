@@ -1,0 +1,36 @@
+# Development dependencies for suspicious-location project
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.1
+
+# Code quality
+black>=23.7.0
+isort>=5.12.0
+flake8>=6.1.0
+mypy>=1.5.0
+
+# Linting
+pylint>=2.17.5
+
+# Security
+bandit>=1.7.5
+safety>=2.3.5
+
+# PySpark (for local testing)
+pyspark>=3.5.0
+
+# MLflow
+mlflow>=2.10.0
+
+# Data science
+pandas>=2.0.0
+numpy>=1.24.0
+scikit-learn>=1.4.0
+
+# Geographic utilities
+geopy>=2.4.0
+
+# Anomaly detection
+hdbscan>=0.8.33
