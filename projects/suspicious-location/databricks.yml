@@ -1,0 +1,84 @@
+# Databricks Asset Bundle configuration for suspicious-location project
+bundle:
+  name: suspicious-location
+
+variables:
+  # Environment-specific variables
+  catalog:
+    description: Unity Catalog name
+    default: dev_catalog
+  schema:
+    description: Schema name within catalog
+    default: suspicious_location
+
+  # Compute configuration
+  cluster_node_type:
+    description: Node type for interactive clusters
+    default: i3.xlarge
+
+  # Model configuration
+  model_name:
+    description: Registered model name
+    default: suspicious_location_detector
+
+  experiment_path:
+    description: MLflow experiment path
+    default: /Shared/suspicious-location/experiments
+
+targets:
+  # Development environment
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://your-workspace.cloud.databricks.com
+      root_path: ~/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog: dev_catalog
+      schema: suspicious_location_dev
+
+  # Staging environment
+  staging:
+    mode: production
+    workspace:
+      host: https://your-workspace.cloud.databricks.com
+      root_path: /Shared/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog: staging_catalog
+      schema: suspicious_location_staging
+    run_as:
+      service_principal_name: sp-suspicious-location-staging
+
+  # Production environment
+  prod:
+    mode: production
+    workspace:
+      host: https://your-workspace.cloud.databricks.com
+      root_path: /Shared/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog: prod_catalog
+      schema: suspicious_location_prod
+    run_as:
+      service_principal_name: sp-suspicious-location-prod
+
+include:
+  - resources/*.yml
+
+artifacts:
+  # Python package artifacts
+  libraries:
+    type: whl
+    path: ./dist
+
+  # Notebook artifacts
+  notebooks:
+    type: notebook
+    path: ./notebooks
+
+permissions:
+  # Bundle-level permissions
+  - level: CAN_MANAGE
+    group_name: data-science-team
+
+  - level: CAN_VIEW
+    group_name: security-team

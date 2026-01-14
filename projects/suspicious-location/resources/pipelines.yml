@@ -1,0 +1,42 @@
+# Delta Live Tables pipelines
+resources:
+  pipelines:
+    location_data_pipeline:
+      name: "[${bundle.target}] Suspicious Location - Data Pipeline"
+      description: DLT pipeline for processing location event data
+
+      target: ${var.catalog}.${var.schema}
+      catalog: ${var.catalog}
+
+      configuration:
+        pipeline.env: ${bundle.target}
+        geo.enrichment.enabled: "true"
+
+      clusters:
+        - label: default
+          node_type_id: ${var.cluster_node_type}
+          num_workers: 3
+          spark_conf:
+            "spark.databricks.delta.optimizeWrite.enabled": "true"
+
+      libraries:
+        - notebook:
+            path: ../notebooks/dlt_location_bronze.py
+        - notebook:
+            path: ../notebooks/dlt_location_silver.py
+        - notebook:
+            path: ../notebooks/dlt_location_gold.py
+        - notebook:
+            path: ../notebooks/dlt_geo_enrichment.py
+
+      continuous: false
+      development: ${{ bundle.target == 'dev' }}
+      edition: ADVANCED
+
+      permissions:
+        - level: CAN_MANAGE
+          group_name: data-engineering-team
+        - level: CAN_VIEW
+          group_name: security-team
+        - level: CAN_VIEW
+          group_name: data-science-team

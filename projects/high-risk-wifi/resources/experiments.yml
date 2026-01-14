@@ -1,0 +1,24 @@
+# MLflow Experiment resources
+resources:
+  experiments:
+    high_risk_wifi_training:
+      name: ${var.experiment_path}/model-training
+      description: Experiment for training high-risk WiFi detection models
+
+      permissions:
+        - level: CAN_MANAGE
+          group_name: data-science-team
+        - level: CAN_EDIT
+          group_name: ml-engineers
+        - level: CAN_READ
+          group_name: analytics-team
+
+    high_risk_wifi_evaluation:
+      name: ${var.experiment_path}/model-evaluation
+      description: Experiment for evaluating model performance
+
+      permissions:
+        - level: CAN_MANAGE
+          group_name: data-science-team
+        - level: CAN_READ
+          group_name: analytics-team

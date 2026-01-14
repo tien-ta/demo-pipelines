@@ -1,0 +1,84 @@
+# Databricks Asset Bundle configuration for high-risk-wifi project
+bundle:
+  name: high-risk-wifi
+
+variables:
+  # Environment-specific variables
+  catalog:
+    description: Unity Catalog name
+    default: dev_catalog
+  schema:
+    description: Schema name within catalog
+    default: high_risk_wifi
+
+  # Compute configuration
+  cluster_node_type:
+    description: Node type for interactive clusters
+    default: i3.xlarge
+
+  # Model configuration
+  model_name:
+    description: Registered model name
+    default: high_risk_wifi_classifier
+
+  experiment_path:
+    description: MLflow experiment path
+    default: /Shared/high-risk-wifi/experiments
+
+targets:
+  # Development environment
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://your-workspace.cloud.databricks.com
+      root_path: ~/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog: dev_catalog
+      schema: high_risk_wifi_dev
+
+  # Staging environment
+  staging:
+    mode: production
+    workspace:
+      host: https://your-workspace.cloud.databricks.com
+      root_path: /Shared/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog: staging_catalog
+      schema: high_risk_wifi_staging
+    run_as:
+      service_principal_name: sp-high-risk-wifi-staging
+
+  # Production environment
+  prod:
+    mode: production
+    workspace:
+      host: https://your-workspace.cloud.databricks.com
+      root_path: /Shared/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog: prod_catalog
+      schema: high_risk_wifi_prod
+    run_as:
+      service_principal_name: sp-high-risk-wifi-prod
+
+include:
+  - resources/*.yml
+
+artifacts:
+  # Python package artifacts
+  libraries:
+    type: whl
+    path: ./dist
+
+  # Notebook artifacts
+  notebooks:
+    type: notebook
+    path: ./notebooks
+
+permissions:
+  # Bundle-level permissions
+  - level: CAN_MANAGE
+    group_name: data-science-team
+
+  - level: CAN_VIEW
+    group_name: analytics-team

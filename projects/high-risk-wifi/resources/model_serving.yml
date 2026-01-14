@@ -1,0 +1,25 @@
+# Model Serving Endpoints
+resources:
+  model_serving_endpoints:
+    high_risk_wifi_endpoint:
+      name: high-risk-wifi-${bundle.target}
+
+      config:
+        served_entities:
+          - entity_name: ${var.model_name}
+            entity_version: "1"
+            workload_size: Small
+            scale_to_zero_enabled: true
+
+        traffic_config:
+          routes:
+            - served_model_name: ${var.model_name}-1
+              traffic_percentage: 100
+
+      permissions:
+        - level: CAN_MANAGE
+          group_name: ml-engineers
+        - level: CAN_QUERY
+          service_principal_name: sp-application-backend-${bundle.target}
+        - level: CAN_VIEW
+          group_name: analytics-team

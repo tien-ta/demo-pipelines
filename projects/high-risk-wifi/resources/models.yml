@@ -1,0 +1,23 @@
+# MLflow Model Registry resources
+resources:
+  models:
+    high_risk_wifi_model:
+      name: ${var.model_name}
+      description: ML model for identifying high-risk WiFi connections
+      tags:
+        - key: team
+          value: data-science
+        - key: project
+          value: high-risk-wifi
+        - key: environment
+          value: ${bundle.target}
+
+      permissions:
+        - level: CAN_MANAGE
+          group_name: data-science-team
+        - level: CAN_MANAGE_STAGING_VERSIONS
+          group_name: ml-engineers
+        - level: CAN_MANAGE_PRODUCTION_VERSIONS
+          service_principal_name: sp-high-risk-wifi-${bundle.target}
+        - level: CAN_READ
+          group_name: analytics-team

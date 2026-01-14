@@ -1,0 +1,27 @@
+# Model Serving Endpoints
+resources:
+  model_serving_endpoints:
+    suspicious_location_endpoint:
+      name: suspicious-location-${bundle.target}
+
+      config:
+        served_entities:
+          - entity_name: ${var.model_name}
+            entity_version: "1"
+            workload_size: Medium
+            scale_to_zero_enabled: false  # Keep warm for low-latency security alerts
+
+        traffic_config:
+          routes:
+            - served_model_name: ${var.model_name}-1
+              traffic_percentage: 100
+
+      permissions:
+        - level: CAN_MANAGE
+          group_name: ml-engineers
+        - level: CAN_QUERY
+          service_principal_name: sp-security-service-${bundle.target}
+        - level: CAN_QUERY
+          group_name: security-team
+        - level: CAN_VIEW
+          group_name: data-science-team

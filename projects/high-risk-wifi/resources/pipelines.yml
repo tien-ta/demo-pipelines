@@ -1,0 +1,37 @@
+# Delta Live Tables pipelines
+resources:
+  pipelines:
+    wifi_data_pipeline:
+      name: "[${bundle.target}] High-Risk WiFi - Data Pipeline"
+      description: DLT pipeline for processing WiFi connection data
+
+      target: ${var.catalog}.${var.schema}
+      catalog: ${var.catalog}
+
+      configuration:
+        pipeline.env: ${bundle.target}
+
+      clusters:
+        - label: default
+          node_type_id: ${var.cluster_node_type}
+          num_workers: 2
+          spark_conf:
+            "spark.databricks.delta.optimizeWrite.enabled": "true"
+
+      libraries:
+        - notebook:
+            path: ../notebooks/dlt_wifi_bronze.py
+        - notebook:
+            path: ../notebooks/dlt_wifi_silver.py
+        - notebook:
+            path: ../notebooks/dlt_wifi_gold.py
+
+      continuous: false
+      development: ${{ bundle.target == 'dev' }}
+      edition: ADVANCED
+
+      permissions:
+        - level: CAN_MANAGE
+          group_name: data-engineering-team
+        - level: CAN_VIEW
+          group_name: analytics-team

@@ -1,0 +1,23 @@
+# MLflow Model Registry resources
+resources:
+  models:
+    suspicious_location_model:
+      name: ${var.model_name}
+      description: ML model for detecting suspicious location patterns and anomalies
+      tags:
+        - key: team
+          value: data-science
+        - key: project
+          value: suspicious-location
+        - key: environment
+          value: ${bundle.target}
+
+      permissions:
+        - level: CAN_MANAGE
+          group_name: data-science-team
+        - level: CAN_MANAGE_STAGING_VERSIONS
+          group_name: ml-engineers
+        - level: CAN_MANAGE_PRODUCTION_VERSIONS
+          service_principal_name: sp-suspicious-location-${bundle.target}
+        - level: CAN_READ
+          group_name: security-team

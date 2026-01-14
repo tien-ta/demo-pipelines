@@ -1,0 +1,34 @@
+# MLflow Experiment resources
+resources:
+  experiments:
+    suspicious_location_training:
+      name: ${var.experiment_path}/model-training
+      description: Experiment for training suspicious location detection models
+
+      permissions:
+        - level: CAN_MANAGE
+          group_name: data-science-team
+        - level: CAN_EDIT
+          group_name: ml-engineers
+        - level: CAN_READ
+          group_name: security-team
+
+    suspicious_location_evaluation:
+      name: ${var.experiment_path}/model-evaluation
+      description: Experiment for evaluating model performance and anomaly detection
+
+      permissions:
+        - level: CAN_MANAGE
+          group_name: data-science-team
+        - level: CAN_READ
+          group_name: security-team
+
+    location_clustering:
+      name: ${var.experiment_path}/clustering-analysis
+      description: Experiment for unsupervised clustering of location patterns
+
+      permissions:
+        - level: CAN_MANAGE
+          group_name: data-science-team
+        - level: CAN_EDIT
+          group_name: ml-engineers

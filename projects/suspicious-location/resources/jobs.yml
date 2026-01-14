@@ -1,0 +1,155 @@
+# Databricks Jobs resources
+resources:
+  jobs:
+    location_analysis_job:
+      name: "[${bundle.target}] Suspicious Location - Pattern Analysis"
+      description: Analyze location patterns and train anomaly detection model
+
+      schedule:
+        quartz_cron_expression: "0 0 3 * * ?" # Daily at 3 AM
+        timezone_id: "America/Los_Angeles"
+        pause_status: UNPAUSED
+
+      tasks:
+        - task_key: extract_location_features
+          notebook_task:
+            notebook_path: ../notebooks/extract_features.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+
+          new_cluster:
+            spark_version: 14.3.x-cpu-ml-scala2.12
+            node_type_id: ${var.cluster_node_type}
+            num_workers: 3
+            spark_conf:
+              "spark.databricks.delta.optimizeWrite.enabled": "true"
+              "spark.databricks.delta.autoCompact.enabled": "true"
+
+          libraries:
+            - pypi:
+                package: scikit-learn==1.4.0
+            - pypi:
+                package: geopy==2.4.1
+            - whl: ../dist/*.whl
+
+        - task_key: train_anomaly_detector
+          depends_on:
+            - task_key: extract_location_features
+          notebook_task:
+            notebook_path: ../notebooks/train_model.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+              model_name: ${var.model_name}
+              experiment_path: ${var.experiment_path}
+
+          new_cluster:
+            spark_version: 14.3.x-cpu-ml-scala2.12
+            node_type_id: ${var.cluster_node_type}
+            num_workers: 2
+
+          libraries:
+            - pypi:
+                package: scikit-learn==1.4.0
+            - pypi:
+                package: mlflow==2.10.0
+            - pypi:
+                package: hdbscan==0.8.33
+            - whl: ../dist/*.whl
+
+        - task_key: evaluate_model
+          depends_on:
+            - task_key: train_anomaly_detector
+          notebook_task:
+            notebook_path: ../notebooks/evaluate_model.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+              model_name: ${var.model_name}
+
+          new_cluster:
+            spark_version: 14.3.x-cpu-ml-scala2.12
+            node_type_id: ${var.cluster_node_type}
+            num_workers: 1
+
+          libraries:
+            - pypi:
+                package: scikit-learn==1.4.0
+            - pypi:
+                package: mlflow==2.10.0
+
+      email_notifications:
+        on_failure:
+          - data-science-team@company.com
+
+      max_concurrent_runs: 1
+      timeout_seconds: 10800
+
+      permissions:
+        - level: CAN_MANAGE
+          group_name: data-science-team
+        - level: CAN_MANAGE_RUN
+          group_name: ml-engineers
+        - level: CAN_VIEW
+          group_name: security-team
+
+    realtime_scoring_job:
+      name: "[${bundle.target}] Suspicious Location - Real-time Scoring"
+      description: Score incoming location data for suspicious patterns
+
+      schedule:
+        quartz_cron_expression: "0 */15 * * * ?" # Every 15 minutes
+        timezone_id: "America/Los_Angeles"
+        pause_status: UNPAUSED
+
+      tasks:
+        - task_key: score_locations
+          notebook_task:
+            notebook_path: ../notebooks/batch_inference.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+              model_name: ${var.model_name}
+              input_table: location_events_raw
+              output_table: location_risk_scores
+
+          new_cluster:
+            spark_version: 14.3.x-cpu-ml-scala2.12
+            node_type_id: ${var.cluster_node_type}
+            num_workers: 3
+
+          libraries:
+            - pypi:
+                package: mlflow==2.10.0
+            - pypi:
+                package: geopy==2.4.1
+            - whl: ../dist/*.whl
+
+        - task_key: alert_on_critical
+          depends_on:
+            - task_key: score_locations
+          notebook_task:
+            notebook_path: ../notebooks/alert_critical.py
+            base_parameters:
+              catalog: ${var.catalog}
+              schema: ${var.schema}
+              alert_threshold: "0.9"
+
+          new_cluster:
+            spark_version: 14.3.x-cpu-ml-scala2.12
+            node_type_id: ${var.cluster_node_type}
+            num_workers: 1
+
+      email_notifications:
+        on_failure:
+          - security-team@company.com
+
+      max_concurrent_runs: 2
+      timeout_seconds: 1800
+
+      permissions:
+        - level: CAN_MANAGE
+          group_name: security-team
+        - level: CAN_VIEW
+          group_name: data-science-team
