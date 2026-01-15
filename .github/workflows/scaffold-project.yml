@@ -1,0 +1,606 @@
+name: Scaffold New Project
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_name:
+        description: 'Project name (lowercase with underscores, e.g., new_ml_project)'
+        required: true
+        type: string
+      project_description:
+        description: 'Short description of the project'
+        required: true
+        type: string
+      project_type:
+        description: 'Type of project'
+        required: true
+        type: choice
+        options:
+          - ml_pipeline
+          - data_pipeline
+          - custom
+      create_pr:
+        description: 'Create pull request after scaffolding'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  scaffold:
+    name: Scaffold ${{ inputs.project_name }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Validate project name
+        run: |
+          PROJECT_NAME="${{ inputs.project_name }}"
+
+          # Validate format (lowercase, underscores only)
+          if [[ ! "$PROJECT_NAME" =~ ^[a-z][a-z0-9_]*$ ]]; then
+            echo "❌ Error: Project name must start with a letter and contain only lowercase letters, numbers, and underscores"
+            exit 1
+          fi
+
+          echo "✅ Project name valid: $PROJECT_NAME"
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Check if project already exists
+        run: |
+          PROJECT_NAME="${{ inputs.project_name }}"
+
+          if [ -d "projects/$PROJECT_NAME" ]; then
+            echo "❌ Error: Project 'projects/$PROJECT_NAME' already exists"
+            exit 1
+          fi
+
+          echo "✅ Project name available"
+
+      - name: Create project structure
+        run: |
+          PROJECT_NAME="${{ inputs.project_name }}"
+          PROJECT_DESC="${{ inputs.project_description }}"
+          PROJECT_TYPE="${{ inputs.project_type }}"
+
+          echo "Creating project structure for: $PROJECT_NAME"
+
+          # Create directory structure
+          mkdir -p "projects/$PROJECT_NAME"/{src,notebooks,tests,resources}
+
+          echo "✅ Created directory structure"
+
+      - name: Create Python package files
+        run: |
+          PROJECT_NAME="${{ inputs.project_name }}"
+          PROJECT_DESC="${{ inputs.project_description }}"
+
+          # Create src/__init__.py
+          cat > "projects/$PROJECT_NAME/src/__init__.py" << 'EOF'
+"""
+$PROJECT_DESC_PLACEHOLDER
+
+This package contains utilities and code for the $PROJECT_NAME_PLACEHOLDER project.
+"""
+
+__version__ = "0.1.0"
+EOF
+
+          # Replace placeholders
+          sed -i "s/\$PROJECT_DESC_PLACEHOLDER/$PROJECT_DESC/g" "projects/$PROJECT_NAME/src/__init__.py"
+          sed -i "s/\$PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/src/__init__.py"
+
+          # Create tests/__init__.py
+          touch "projects/$PROJECT_NAME/tests/__init__.py"
+
+          # Create tests/conftest.py
+          cat > "projects/$PROJECT_NAME/tests/conftest.py" << 'EOF'
+"""
+Pytest configuration and fixtures for $PROJECT_NAME_PLACEHOLDER tests.
+"""
+
+import pytest
+
+
+@pytest.fixture
+def sample_data():
+    """Fixture for sample test data."""
+    return {"test": "data"}
+EOF
+
+          sed -i "s/\$PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/tests/conftest.py"
+
+          echo "✅ Created Python package files"
+
+      - name: Create setup.py
+        run: |
+          PROJECT_NAME="${{ inputs.project_name }}"
+          PROJECT_DESC="${{ inputs.project_description }}"
+
+          cat > "projects/$PROJECT_NAME/setup.py" << 'EOF'
+"""
+Setup configuration for $PROJECT_NAME_PLACEHOLDER package.
+"""
+
+from setuptools import setup, find_packages
+
+setup(
+    name="$PROJECT_NAME_PLACEHOLDER",
+    version="0.1.0",
+    description="$PROJECT_DESC_PLACEHOLDER",
+    author="Data Science Team",
+    packages=find_packages(),
+    install_requires=[
+        "pyspark>=3.5.0",
+        "pandas>=2.0.0",
+        "numpy>=1.24.0",
+    ],
+    python_requires=">=3.10",
+)
+EOF
+
+          sed -i "s/\$PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/setup.py"
+          sed -i "s/\$PROJECT_DESC_PLACEHOLDER/$PROJECT_DESC/g" "projects/$PROJECT_NAME/setup.py"
+
+          echo "✅ Created setup.py"
+
+      - name: Create requirements-dev.txt
+        run: |
+          PROJECT_NAME="${{ inputs.project_name }}"
+
+          cat > "projects/$PROJECT_NAME/requirements-dev.txt" << 'EOF'
+# Development dependencies for $PROJECT_NAME_PLACEHOLDER project
+
+# Testing
+pytest>=7.4.0
+pytest-cov>=4.1.0
+pytest-mock>=3.11.1
+
+# Code quality
+black>=23.7.0
+isort>=5.12.0
+flake8>=6.1.0
+mypy>=1.5.0
+
+# Linting
+pylint>=2.17.5
+
+# Security
+bandit>=1.7.5
+safety>=2.3.5
+
+# PySpark (for local testing)
+pyspark>=3.5.0
+
+# Data science
+pandas>=2.0.0
+numpy>=1.24.0
+EOF
+
+          sed -i "s/\$PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/requirements-dev.txt"
+
+          echo "✅ Created requirements-dev.txt"
+
+      - name: Create pytest.ini
+        run: |
+          PROJECT_NAME="${{ inputs.project_name }}"
+
+          cat > "projects/$PROJECT_NAME/pytest.ini" << 'EOF'
+[pytest]
+testpaths = tests
+python_files = test_*.py
+python_classes = Test*
+python_functions = test_*
+addopts =
+    -v
+    --tb=short
+    --strict-markers
+    --disable-warnings
+markers =
+    unit: Unit tests
+    integration: Integration tests
+    slow: Slow running tests
+EOF
+
+          echo "✅ Created pytest.ini"
+
+      - name: Create databricks.yml
+        run: |
+          PROJECT_NAME="${{ inputs.project_name }}"
+          PROJECT_DESC="${{ inputs.project_description }}"
+
+          # Convert underscores to hyphens for bundle name
+          BUNDLE_NAME=$(echo "$PROJECT_NAME" | tr '_' '-')
+
+          cat > "projects/$PROJECT_NAME/databricks.yml" << 'EOF'
+# Databricks Asset Bundle configuration for $PROJECT_NAME_PLACEHOLDER project
+bundle:
+  name: $BUNDLE_NAME_PLACEHOLDER
+
+variables:
+  # Environment-specific variables
+  catalog:
+    description: Unity Catalog name
+    default: dev_catalog
+  schema:
+    description: Schema name within catalog
+    default: $PROJECT_NAME_PLACEHOLDER
+
+  # Compute configuration
+  cluster_node_type:
+    description: Node type for interactive clusters
+    default: i3.xlarge
+
+targets:
+  # Development environment
+  dev:
+    mode: development
+    default: true
+    workspace:
+      host: https://your-workspace.cloud.databricks.com
+      root_path: ~/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog: dev_catalog
+      schema: ${bundle.name}_dev
+
+  # Staging environment
+  staging:
+    mode: production
+    workspace:
+      host: https://your-workspace.cloud.databricks.com
+      root_path: /Shared/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog: staging_catalog
+      schema: ${bundle.name}_staging
+    run_as:
+      service_principal_name: sp-${bundle.name}-staging
+
+  # Production environment
+  prod:
+    mode: production
+    workspace:
+      host: https://your-workspace.cloud.databricks.com
+      root_path: /Shared/.bundle/${bundle.name}/${bundle.target}
+    variables:
+      catalog: prod_catalog
+      schema: ${bundle.name}_prod
+    run_as:
+      service_principal_name: sp-${bundle.name}-prod
+
+include:
+  - resources/*.yml
+
+artifacts:
+  # Python package artifacts
+  libraries:
+    type: whl
+    path: ./dist
+
+  # Notebook artifacts
+  notebooks:
+    type: notebook
+    path: ./notebooks
+
+permissions:
+  # Bundle-level permissions
+  - level: CAN_MANAGE
+    group_name: data-science-team
+
+  - level: CAN_VIEW
+    group_name: analytics-team
+EOF
+
+          sed -i "s/\$PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/databricks.yml"
+          sed -i "s/\$BUNDLE_NAME_PLACEHOLDER/$BUNDLE_NAME/g" "projects/$PROJECT_NAME/databricks.yml"
+
+          echo "✅ Created databricks.yml"
+
+      - name: Create resource files
+        run: |
+          PROJECT_NAME="${{ inputs.project_name }}"
+
+          # Create empty resource files
+          cat > "projects/$PROJECT_NAME/resources/jobs.yml" << 'EOF'
+# Databricks Jobs resources
+resources:
+  jobs:
+    # Add your job definitions here
+EOF
+
+          cat > "projects/$PROJECT_NAME/resources/pipelines.yml" << 'EOF'
+# Delta Live Tables pipelines
+resources:
+  pipelines:
+    # Add your DLT pipeline definitions here
+EOF
+
+          cat > "projects/$PROJECT_NAME/resources/experiments.yml" << 'EOF'
+# MLflow Experiments
+resources:
+  experiments:
+    # Add your experiment definitions here
+EOF
+
+          cat > "projects/$PROJECT_NAME/resources/models.yml" << 'EOF'
+# MLflow Models
+resources:
+  registered_models:
+    # Add your model registry definitions here
+EOF
+
+          cat > "projects/$PROJECT_NAME/resources/model_serving.yml" << 'EOF'
+# Model Serving Endpoints
+resources:
+  model_serving_endpoints:
+    # Add your serving endpoint definitions here
+EOF
+
+          echo "✅ Created resource files"
+
+      - name: Create README.md
+        run: |
+          PROJECT_NAME="${{ inputs.project_name }}"
+          PROJECT_DESC="${{ inputs.project_description }}"
+          DISPLAY_NAME=$(echo "$PROJECT_NAME" | tr '_' ' ' | sed 's/\b\(.\)/\u\1/g')
+
+          cat > "projects/$PROJECT_NAME/README.md" << 'EOF'
+# $DISPLAY_NAME_PLACEHOLDER
+
+Databricks Asset Bundle for $PROJECT_DESC_PLACEHOLDER.
+
+## Overview
+
+$PROJECT_DESC_PLACEHOLDER
+
+## Project Structure
+
+```
+$PROJECT_NAME_PLACEHOLDER/
+├── databricks.yml              # Main bundle configuration
+├── resources/                  # Resource definitions
+│   ├── jobs.yml               # Databricks jobs
+│   ├── pipelines.yml          # Delta Live Tables
+│   ├── experiments.yml        # MLflow experiments
+│   ├── models.yml             # MLflow model registry
+│   └── model_serving.yml      # Model serving endpoints
+├── notebooks/                  # Databricks notebooks
+├── src/                        # Python source code
+│   └── __init__.py
+├── tests/                      # Unit tests
+│   ├── __init__.py
+│   └── conftest.py
+├── setup.py                    # Package setup
+├── requirements-dev.txt        # Development dependencies
+└── pytest.ini                  # Pytest configuration
+```
+
+## Development
+
+### Install dependencies
+```bash
+cd projects/$PROJECT_NAME_PLACEHOLDER
+pip install -e .
+pip install -r requirements-dev.txt
+```
+
+### Run tests
+```bash
+pytest tests/ -v
+```
+
+### Run code quality checks
+```bash
+# Format code
+black src/ tests/
+isort src/ tests/
+
+# Lint code
+flake8 src/ tests/
+pylint src/
+
+# Type check
+mypy src/
+```
+
+## Deployment
+
+### Deploy to Development
+```bash
+cd projects/$PROJECT_NAME_PLACEHOLDER
+databricks bundle deploy -t dev
+```
+
+### Deploy to Staging
+```bash
+databricks bundle deploy -t staging
+```
+
+### Deploy to Production
+```bash
+databricks bundle deploy -t prod
+```
+
+## Version
+
+Current version: 0.1.0
+
+## Requirements
+
+- Databricks Runtime 14.3 LTS or higher
+- Unity Catalog enabled
+- Python 3.10+
+EOF
+
+          sed -i "s/\$PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/README.md"
+          sed -i "s/\$PROJECT_DESC_PLACEHOLDER/$PROJECT_DESC/g" "projects/$PROJECT_NAME/README.md"
+          sed -i "s/\$DISPLAY_NAME_PLACEHOLDER/$DISPLAY_NAME/g" "projects/$PROJECT_NAME/README.md"
+
+          echo "✅ Created README.md"
+
+      - name: Create sample test file
+        run: |
+          PROJECT_NAME="${{ inputs.project_name }}"
+
+          cat > "projects/$PROJECT_NAME/tests/test_sample.py" << 'EOF'
+"""
+Sample tests for $PROJECT_NAME_PLACEHOLDER.
+"""
+
+import pytest
+
+
+class TestSample:
+    """Sample test class."""
+
+    def test_version_exists(self):
+        """Test that version is defined."""
+        from $MODULE_NAME_PLACEHOLDER import __version__
+
+        assert __version__ is not None
+        assert isinstance(__version__, str)
+
+    def test_sample_fixture(self, sample_data):
+        """Test sample fixture from conftest."""
+        assert sample_data is not None
+        assert "test" in sample_data
+EOF
+
+          # Convert project name to module name (same, just for clarity)
+          MODULE_NAME="$PROJECT_NAME"
+          sed -i "s/\$PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/tests/test_sample.py"
+          sed -i "s/\$MODULE_NAME_PLACEHOLDER/$MODULE_NAME/g" "projects/$PROJECT_NAME/tests/test_sample.py"
+
+          echo "✅ Created sample test file"
+
+      - name: Create branch and commit
+        id: commit
+        run: |
+          PROJECT_NAME="${{ inputs.project_name }}"
+          BRANCH_NAME="scaffold/$PROJECT_NAME"
+
+          git checkout -b "$BRANCH_NAME"
+          git add "projects/$PROJECT_NAME"
+          git commit -m "Scaffold new project: $PROJECT_NAME
+
+Created complete project structure for $PROJECT_NAME.
+
+Project type: ${{ inputs.project_type }}
+Description: ${{ inputs.project_description }}
+
+Includes:
+- Python package structure (src/, tests/)
+- Databricks bundle configuration
+- Resource definitions (jobs, pipelines, experiments, models, serving)
+- Development tooling (pytest, black, flake8, mypy)
+- Documentation (README.md)
+
+Co-Authored-By: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+
+          git push -u origin "$BRANCH_NAME"
+
+          echo "branch=$BRANCH_NAME" >> $GITHUB_OUTPUT
+          echo "✅ Created branch and committed changes"
+
+      - name: Create Pull Request
+        if: inputs.create_pr == true
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PROJECT_NAME="${{ inputs.project_name }}"
+          BRANCH_NAME="${{ steps.commit.outputs.branch }}"
+
+          gh pr create \
+            --title "Add new project: $PROJECT_NAME" \
+            --body "$(cat <<'EOF'
+## New Project Scaffolded
+
+**Project Name:** $PROJECT_NAME_PLACEHOLDER
+**Description:** $PROJECT_DESC_PLACEHOLDER
+**Type:** $PROJECT_TYPE_PLACEHOLDER
+
+### What's Included
+
+This PR adds a complete project structure with:
+
+- ✅ Python package structure (`src/`, `tests/`)
+- ✅ Databricks bundle configuration (`databricks.yml`)
+- ✅ Resource definitions (jobs, pipelines, experiments, models, serving)
+- ✅ Development dependencies (`requirements-dev.txt`)
+- ✅ Testing configuration (`pytest.ini`)
+- ✅ Package setup (`setup.py`)
+- ✅ Documentation (`README.md`)
+- ✅ Sample test file
+
+### Next Steps
+
+1. Review the generated structure
+2. Update `databricks.yml` with actual workspace URLs
+3. Add your notebooks to `notebooks/`
+4. Add your source code to `src/`
+5. Update resource definitions in `resources/`
+6. Update README with project-specific details
+
+### Deployment
+
+Once merged, the project will be:
+- Validated by CI/CD on future changes
+- Available for bundle deployment with tags
+
+🤖 Generated with GitHub Actions
+EOF
+)" \
+            --head "$BRANCH_NAME" \
+            --base master
+
+          # Replace placeholders in PR body
+          sed -i "s/\$PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" || true
+          sed -i "s/\$PROJECT_DESC_PLACEHOLDER/${{ inputs.project_description }}/g" || true
+          sed -i "s/\$PROJECT_TYPE_PLACEHOLDER/${{ inputs.project_type }}/g" || true
+
+          echo "✅ Created pull request"
+
+      - name: Summary
+        run: |
+          PROJECT_NAME="${{ inputs.project_name }}"
+          BRANCH_NAME="${{ steps.commit.outputs.branch }}"
+
+          echo "## ✅ Project Scaffolding Complete" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Project Name:** $PROJECT_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "**Description:** ${{ inputs.project_description }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Type:** ${{ inputs.project_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`$BRANCH_NAME\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Created Structure" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- 📁 \`projects/$PROJECT_NAME/\`" >> $GITHUB_STEP_SUMMARY
+          echo "  - 📄 \`databricks.yml\` - Bundle configuration" >> $GITHUB_STEP_SUMMARY
+          echo "  - 📄 \`setup.py\` - Package setup" >> $GITHUB_STEP_SUMMARY
+          echo "  - 📄 \`README.md\` - Documentation" >> $GITHUB_STEP_SUMMARY
+          echo "  - 📄 \`pytest.ini\` - Test configuration" >> $GITHUB_STEP_SUMMARY
+          echo "  - 📄 \`requirements-dev.txt\` - Dev dependencies" >> $GITHUB_STEP_SUMMARY
+          echo "  - 📁 \`src/\` - Source code" >> $GITHUB_STEP_SUMMARY
+          echo "  - 📁 \`tests/\` - Unit tests" >> $GITHUB_STEP_SUMMARY
+          echo "  - 📁 \`notebooks/\` - Databricks notebooks" >> $GITHUB_STEP_SUMMARY
+          echo "  - 📁 \`resources/\` - Resource definitions" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ inputs.create_pr }}" = "true" ]; then
+            echo "### 🔗 Pull Request" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "A pull request has been created for review." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### 📝 Next Steps" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Review the changes in branch \`$BRANCH_NAME\` and create a PR manually if needed." >> $GITHUB_STEP_SUMMARY
+          fi
