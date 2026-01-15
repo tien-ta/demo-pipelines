@@ -1,37 +1,71 @@
 name: Auto Version Bump
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
-    paths:
-      - 'projects/**'
+  workflow_run:
+    workflows: ["Python Tests & Quality"]
+    types:
+      - completed
 
 jobs:
   version-bump:
     name: Auto Bump Project Versions
     runs-on: ubuntu-latest
+    if: |
+      github.event.workflow_run.event == 'pull_request' &&
+      github.event.workflow_run.conclusion == 'success'
     permissions:
       contents: write
       pull-requests: write
 
     steps:
+      - name: Get PR details
+        id: pr
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: pullRequests } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              head: `${context.repo.owner}:${context.payload.workflow_run.head_branch}`,
+              state: 'open'
+            });
+
+            if (pullRequests.length === 0) {
+              console.log('No open PR found for this branch');
+              return null;
+            }
+
+            const pr = pullRequests[0];
+            console.log(`Found PR #${pr.number}`);
+            return {
+              number: pr.number,
+              head_ref: pr.head.ref,
+              head_sha: pr.head.sha,
+              base_ref: pr.base.ref
+            };
+
       - name: Checkout PR branch
+        if: steps.pr.outputs.result != 'null'
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
+          ref: ${{ fromJSON(steps.pr.outputs.result).head_ref }}
           fetch-depth: 0
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Configure Git
+        if: steps.pr.outputs.result != 'null'
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
       - name: Detect changed projects
+        if: steps.pr.outputs.result != 'null'
         id: detect-changes
         run: |
+          BASE_REF="${{ fromJSON(steps.pr.outputs.result).base_ref }}"
+
           # Get changed files in PR
-          CHANGED_FILES=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD)
+          CHANGED_FILES=$(git diff --name-only origin/$BASE_REF...HEAD)
 
           echo "Changed files:"
           echo "$CHANGED_FILES"
@@ -142,7 +176,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BUMPED="${{ steps.bump-versions.outputs.bumped_projects }}"
-          PR_NUMBER="${{ github.event.pull_request.number }}"
+          PR_NUMBER="${{ fromJSON(steps.pr.outputs.result).number }}"
 
           {
             echo "## 🔢 Auto Version Bump"
