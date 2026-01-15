@@ -1,5 +1,7 @@
 """
 Feature engineering utilities for WiFi risk detection.
+
+This module provides functions for extracting features from WiFi connection data.
 """
 
 from pyspark.sql import DataFrame
