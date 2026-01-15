@@ -144,14 +144,16 @@ jobs:
           BUMPED="${{ steps.bump-versions.outputs.bumped_projects }}"
           PR_NUMBER="${{ github.event.pull_request.number }}"
 
-          COMMENT_BODY="## 🔢 Auto Version Bump
+          cat > /tmp/pr-comment.md <<EOF
+## 🔢 Auto Version Bump
 
 The following project versions have been automatically incremented:
 $BUMPED
 
-This commit will be included when the PR is merged and will trigger automatic tagging."
+This commit will be included when the PR is merged and will trigger automatic tagging.
+EOF
 
-          gh pr comment "$PR_NUMBER" --body "$COMMENT_BODY"
+          gh pr comment "$PR_NUMBER" --body-file /tmp/pr-comment.md
 
       - name: Summary
         if: steps.detect-changes.outputs.has_changes == 'true'
