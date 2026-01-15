@@ -80,6 +80,23 @@ jobs:
 
           echo "✅ Created directory structure"
 
+      - name: Create version.yml
+        run: |
+          PROJECT_NAME="${{ inputs.project_name }}"
+
+          cat > "projects/$PROJECT_NAME/version.yml" << 'EOF'
+# Version configuration for PROJECT_NAME_PLACEHOLDER project
+version:
+  code: "0.1.0"
+  model_name: "PROJECT_NAME_PLACEHOLDER_model"
+  model_version: "1.0.0"
+EOF
+
+          sed -i.bak "s/PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/version.yml"
+          rm -f "projects/$PROJECT_NAME/version.yml.bak"
+
+          echo "✅ Created version.yml"
+
       - name: Create Python package files
         run: |
           PROJECT_NAME="${{ inputs.project_name }}"
@@ -370,7 +387,8 @@ $PROJECT_NAME_PLACEHOLDER/
 │   └── conftest.py
 ├── setup.py                    # Package setup
 ├── requirements-dev.txt        # Development dependencies
-└── pytest.ini                  # Pytest configuration
+├── pytest.ini                  # Pytest configuration
+└── version.yml                 # Version configuration
 ```
 
 ## Development
@@ -563,6 +581,7 @@ Once merged, the project will be:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "- 📁 \`projects/$PROJECT_NAME/\`" >> $GITHUB_STEP_SUMMARY
           echo "  - 📄 \`databricks.yml\` - Bundle configuration" >> $GITHUB_STEP_SUMMARY
+          echo "  - 📄 \`version.yml\` - Version configuration" >> $GITHUB_STEP_SUMMARY
           echo "  - 📄 \`setup.py\` - Package setup" >> $GITHUB_STEP_SUMMARY
           echo "  - 📄 \`README.md\` - Documentation" >> $GITHUB_STEP_SUMMARY
           echo "  - 📄 \`pytest.ini\` - Test configuration" >> $GITHUB_STEP_SUMMARY

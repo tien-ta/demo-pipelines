@@ -51,25 +51,32 @@ jobs:
           for project in $CHANGED_PROJECTS; do
             echo "Processing project: $project"
 
-            # Check if project has __init__.py with version
-            INIT_FILE="projects/$project/src/__init__.py"
-            if [ ! -f "$INIT_FILE" ]; then
-              echo "⚠️  Warning: $INIT_FILE not found, skipping tagging"
+            # Check if project has version.yml
+            VERSION_FILE="projects/$project/version.yml"
+            if [ ! -f "$VERSION_FILE" ]; then
+              echo "⚠️  Warning: $VERSION_FILE not found, skipping tagging"
               continue
             fi
 
-            # Extract version from __init__.py
-            VERSION=$(grep -E "^__version__\s*=\s*['\"]([^'\"]+)['\"]" "$INIT_FILE" | sed -E "s/^__version__\s*=\s*['\"]([^'\"]+)['\"].*/\1/")
+            # Extract version from version.yml
+            VERSION=$(grep -E "^\s+code:\s+" "$VERSION_FILE" | sed -E 's/.*code:\s+"([^"]+)".*/\1/')
 
             if [ -z "$VERSION" ]; then
-              echo "⚠️  Warning: Could not extract version from $INIT_FILE, skipping tagging"
+              echo "⚠️  Warning: Could not extract version from $VERSION_FILE, skipping tagging"
               continue
             fi
+
+            # Extract model info for tag annotation
+            MODEL_NAME=$(grep -E "^\s+model_name:\s+" "$VERSION_FILE" | sed -E 's/.*model_name:\s+"([^"]+)".*/\1/')
+            MODEL_VERSION=$(grep -E "^\s+model_version:\s+" "$VERSION_FILE" | sed -E 's/.*model_version:\s+"([^"]+)".*/\1/')
 
             # Create tag name
             TAG_NAME="${project}-${VERSION}"
 
             echo "Creating tag: $TAG_NAME"
+            echo "  Code version: $VERSION"
+            echo "  Model name: $MODEL_NAME"
+            echo "  Model version: $MODEL_VERSION"
 
             # Check if tag already exists
             if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
@@ -77,8 +84,14 @@ jobs:
               continue
             fi
 
-            # Create and push the tag
-            git tag -a "$TAG_NAME" -m "Release $project version $VERSION"
+            # Create and push the tag with detailed message
+            TAG_MESSAGE="Release $project version $VERSION
+
+Code Version: $VERSION
+Model Name: $MODEL_NAME
+Model Version: $MODEL_VERSION"
+
+            git tag -a "$TAG_NAME" -m "$TAG_MESSAGE"
             git push origin "$TAG_NAME"
 
             echo "✅ Successfully created and pushed tag: $TAG_NAME"

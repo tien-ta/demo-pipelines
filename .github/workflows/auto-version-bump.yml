@@ -1,0 +1,163 @@
+name: Auto Version Bump
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - 'projects/**'
+
+jobs:
+  version-bump:
+    name: Auto Bump Project Versions
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.ref }}
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Detect changed projects
+        id: detect-changes
+        run: |
+          # Get changed files in PR
+          CHANGED_FILES=$(git diff --name-only origin/${{ github.event.pull_request.base.ref }}...HEAD)
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          echo ""
+
+          # Find unique project directories that have changes (excluding version.yml itself)
+          CHANGED_PROJECTS=$(echo "$CHANGED_FILES" | grep '^projects/' | grep -v 'version\.yml' | cut -d'/' -f2 | sort -u)
+
+          if [ -z "$CHANGED_PROJECTS" ]; then
+            echo "No project changes detected (or only version.yml changed)"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          echo "Changed projects:"
+          echo "$CHANGED_PROJECTS"
+
+          # Convert to JSON array for matrix
+          PROJECTS_JSON=$(echo "$CHANGED_PROJECTS" | jq -R -s -c 'split("\n")[:-1]')
+          echo "projects=$PROJECTS_JSON" >> $GITHUB_OUTPUT
+          echo "has_changes=true" >> $GITHUB_OUTPUT
+
+      - name: Bump versions
+        if: steps.detect-changes.outputs.has_changes == 'true'
+        run: |
+          PROJECTS='${{ steps.detect-changes.outputs.projects }}'
+          BUMPED_PROJECTS=""
+
+          for project in $(echo "$PROJECTS" | jq -r '.[]'); do
+            VERSION_FILE="projects/$project/version.yml"
+
+            if [ ! -f "$VERSION_FILE" ]; then
+              echo "⚠️  Warning: $VERSION_FILE not found, skipping"
+              continue
+            fi
+
+            # Extract current version
+            CURRENT_VERSION=$(grep -E "^\s+code:\s+" "$VERSION_FILE" | sed -E 's/.*code:\s+"([^"]+)".*/\1/')
+
+            if [ -z "$CURRENT_VERSION" ]; then
+              echo "❌ Error: Could not extract version from $VERSION_FILE"
+              continue
+            fi
+
+            echo "Current version for $project: $CURRENT_VERSION"
+
+            # Parse version components (major.minor.patch)
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+
+            # Increment patch version
+            NEW_PATCH=$((PATCH + 1))
+            NEW_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+
+            echo "New version for $project: $NEW_VERSION"
+
+            # Update version.yml
+            sed -i.bak "s/code: \"$CURRENT_VERSION\"/code: \"$NEW_VERSION\"/" "$VERSION_FILE"
+            rm -f "$VERSION_FILE.bak"
+
+            # Also update src/__init__.py if it exists
+            INIT_FILE="projects/$project/src/__init__.py"
+            if [ -f "$INIT_FILE" ]; then
+              sed -i.bak "s/__version__ = \"$CURRENT_VERSION\"/__version__ = \"$NEW_VERSION\"/" "$INIT_FILE"
+              rm -f "$INIT_FILE.bak"
+              echo "  ✓ Updated $INIT_FILE"
+            fi
+
+            echo "  ✓ Updated $VERSION_FILE"
+            BUMPED_PROJECTS="$BUMPED_PROJECTS\n- $project: $CURRENT_VERSION → $NEW_VERSION"
+          done
+
+          if [ -z "$BUMPED_PROJECTS" ]; then
+            echo "No versions were bumped"
+            exit 0
+          fi
+
+          echo "bumped_projects<<EOF" >> $GITHUB_OUTPUT
+          echo -e "$BUMPED_PROJECTS" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+
+      - name: Check for changes
+        id: check-changes
+        if: steps.detect-changes.outputs.has_changes == 'true'
+        run: |
+          if git diff --quiet; then
+            echo "No version changes to commit"
+            echo "has_version_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Version changes detected"
+            echo "has_version_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit version bump
+        if: steps.check-changes.outputs.has_version_changes == 'true'
+        run: |
+          git add projects/*/version.yml projects/*/src/__init__.py
+          git commit -m "chore: auto-bump project versions
+
+Automatically incremented patch version for changed projects.
+
+Co-Authored-By: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+
+          git push
+
+      - name: Comment on PR
+        if: steps.check-changes.outputs.has_version_changes == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh pr comment ${{ github.event.pull_request.number }} --body "## 🔢 Auto Version Bump
+
+The following project versions have been automatically incremented:
+${{ steps.bump-versions.outputs.bumped_projects }}
+
+This commit will be included when the PR is merged and will trigger automatic tagging."
+
+      - name: Summary
+        if: steps.detect-changes.outputs.has_changes == 'true'
+        run: |
+          echo "## Version Bump Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "${{ steps.check-changes.outputs.has_version_changes }}" = "true" ]; then
+            echo "✅ **Versions Updated:**" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "${{ steps.bump-versions.outputs.bumped_projects }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️ **No version changes needed**" >> $GITHUB_STEP_SUMMARY
+          fi

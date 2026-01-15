@@ -1,0 +1,5 @@
+# Version configuration for suspicious_location project
+version:
+  code: "0.1.1"
+  model_name: "suspicious_location_detector"
+  model_version: "1.0.0"
