@@ -359,19 +359,25 @@ PYSCRIPT
           PROJECT_DESC="${{ inputs.project_description }}"
           DISPLAY_NAME=$(echo "$PROJECT_NAME" | tr '_' ' ' | sed 's/\b\(.\)/\u\1/g')
 
-          cat > "projects/$PROJECT_NAME/README.md" <<'HEREDOC'
-# $DISPLAY_NAME_PLACEHOLDER
+          python3 - <<PYEOF
+import os
+project_name = os.environ['PROJECT_NAME']
+project_desc = os.environ['PROJECT_DESC']
+display_name = os.environ['DISPLAY_NAME']
 
-Databricks Asset Bundle for $PROJECT_DESC_PLACEHOLDER.
+content = f'''
+# {display_name}
+
+Databricks Asset Bundle for {project_desc}.
 
 ## Overview
 
-$PROJECT_DESC_PLACEHOLDER
+{project_desc}
 
 ## Project Structure
 
 ```
-$PROJECT_NAME_PLACEHOLDER/
+{project_name}/
 ├── databricks.yml              # Main bundle configuration
 ├── resources/                  # Resource definitions
 │   ├── jobs.yml               # Databricks jobs
@@ -395,7 +401,7 @@ $PROJECT_NAME_PLACEHOLDER/
 
 ### Install dependencies
 ```bash
-cd projects/$PROJECT_NAME_PLACEHOLDER
+cd projects/{project_name}
 pip install -e .
 pip install -r requirements-dev.txt
 ```
@@ -423,7 +429,7 @@ mypy src/
 
 ### Deploy to Development
 ```bash
-cd projects/$PROJECT_NAME_PLACEHOLDER
+cd projects/{project_name}
 databricks bundle deploy -t dev
 ```
 
@@ -446,11 +452,11 @@ Current version: 0.1.0
 - Databricks Runtime 14.3 LTS or higher
 - Unity Catalog enabled
 - Python 3.10+
-HEREDOC
+'''
 
-          sed -i "s/\$PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/README.md"
-          sed -i "s/\$PROJECT_DESC_PLACEHOLDER/$PROJECT_DESC/g" "projects/$PROJECT_NAME/README.md"
-          sed -i "s/\$DISPLAY_NAME_PLACEHOLDER/$DISPLAY_NAME/g" "projects/$PROJECT_NAME/README.md"
+with open(f"projects/{project_name}/README.md", "w") as f:
+    f.write(content)
+PYEOF
 
           echo "✅ Created README.md"
 
