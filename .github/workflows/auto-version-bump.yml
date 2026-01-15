@@ -142,13 +142,16 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           BUMPED="${{ steps.bump-versions.outputs.bumped_projects }}"
+          PR_NUMBER="${{ github.event.pull_request.number }}"
 
-          gh pr comment ${{ github.event.pull_request.number }} --body "## 🔢 Auto Version Bump
+          COMMENT_BODY="## 🔢 Auto Version Bump
 
 The following project versions have been automatically incremented:
 $BUMPED
 
 This commit will be included when the PR is merged and will trigger automatic tagging."
+
+          gh pr comment "$PR_NUMBER" --body "$COMMENT_BODY"
 
       - name: Summary
         if: steps.detect-changes.outputs.has_changes == 'true'
