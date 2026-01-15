@@ -86,40 +86,33 @@ jobs:
           PROJECT_DESC="${{ inputs.project_description }}"
 
           # Create src/__init__.py
-          cat > "projects/$PROJECT_NAME/src/__init__.py" <<'HEREDOC'
-"""
-PROJECT_DESC_PLACEHOLDER
-
-This package contains utilities and code for the PROJECT_NAME_PLACEHOLDER project.
-"""
-
-__version__ = "0.1.0"
-HEREDOC
-
-          sed -i.bak "s/PROJECT_DESC_PLACEHOLDER/$PROJECT_DESC/g" "projects/$PROJECT_NAME/src/__init__.py"
-          sed -i.bak "s/PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/src/__init__.py"
-          rm -f "projects/$PROJECT_NAME/src/__init__.py.bak"
+          {
+            echo '"""'
+            echo "$PROJECT_DESC"
+            echo ""
+            echo "This package contains utilities and code for the $PROJECT_NAME project."
+            echo '"""'
+            echo ""
+            echo '__version__ = "0.1.0"'
+          } > "projects/$PROJECT_NAME/src/__init__.py"
 
           # Create tests/__init__.py
           touch "projects/$PROJECT_NAME/tests/__init__.py"
 
           # Create tests/conftest.py
-          cat > "projects/$PROJECT_NAME/tests/conftest.py" <<'HEREDOC'
-"""
-Pytest configuration and fixtures for PROJECT_NAME_PLACEHOLDER tests.
-"""
-
-import pytest
-
-
-@pytest.fixture
-def sample_data():
-    """Fixture for sample test data."""
-    return {"test": "data"}
-HEREDOC
-
-          sed -i.bak "s/PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/tests/conftest.py"
-          rm -f "projects/$PROJECT_NAME/tests/conftest.py.bak"
+          {
+            echo '"""'
+            echo "Pytest configuration and fixtures for $PROJECT_NAME tests."
+            echo '"""'
+            echo ""
+            echo "import pytest"
+            echo ""
+            echo ""
+            echo "@pytest.fixture"
+            echo "def sample_data():"
+            echo '    """Fixture for sample test data."""'
+            echo '    return {"test": "data"}'
+          } > "projects/$PROJECT_NAME/tests/conftest.py"
 
           echo "✅ Created Python package files"
 
@@ -128,31 +121,27 @@ HEREDOC
           PROJECT_NAME="${{ inputs.project_name }}"
           PROJECT_DESC="${{ inputs.project_description }}"
 
-          cat > "projects/$PROJECT_NAME/setup.py" <<'HEREDOC'
-"""
-Setup configuration for PROJECT_NAME_PLACEHOLDER package.
-"""
-
-from setuptools import setup, find_packages
-
-setup(
-    name="PROJECT_NAME_PLACEHOLDER",
-    version="0.1.0",
-    description="PROJECT_DESC_PLACEHOLDER",
-    author="Data Science Team",
-    packages=find_packages(),
-    install_requires=[
-        "pyspark>=3.5.0",
-        "pandas>=2.0.0",
-        "numpy>=1.24.0",
-    ],
-    python_requires=">=3.10",
-)
-HEREDOC
-
-          sed -i.bak "s/PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/setup.py"
-          sed -i.bak "s/PROJECT_DESC_PLACEHOLDER/$PROJECT_DESC/g" "projects/$PROJECT_NAME/setup.py"
-          rm -f "projects/$PROJECT_NAME/setup.py.bak"
+          {
+            echo '"""'
+            echo "Setup configuration for $PROJECT_NAME package."
+            echo '"""'
+            echo ""
+            echo "from setuptools import setup, find_packages"
+            echo ""
+            echo "setup("
+            echo "    name=\"$PROJECT_NAME\","
+            echo "    version=\"0.1.0\","
+            echo "    description=\"$PROJECT_DESC\","
+            echo "    author=\"Data Science Team\","
+            echo "    packages=find_packages(),"
+            echo "    install_requires=["
+            echo "        \"pyspark>=3.5.0\","
+            echo "        \"pandas>=2.0.0\","
+            echo "        \"numpy>=1.24.0\","
+            echo "    ],"
+            echo "    python_requires=\">=3.10\","
+            echo ")"
+          } > "projects/$PROJECT_NAME/setup.py"
 
           echo "✅ Created setup.py"
 
@@ -451,32 +440,29 @@ EOF
         run: |
           PROJECT_NAME="${{ inputs.project_name }}"
 
-          cat > "projects/$PROJECT_NAME/tests/test_sample.py" <<'HEREDOC'
-"""
-Sample tests for PROJECT_NAME_PLACEHOLDER.
-"""
-
-import pytest
-
-
-class TestSample:
-    """Sample test class."""
-
-    def test_version_exists(self):
-        """Test that version is defined."""
-        from PROJECT_NAME_PLACEHOLDER import __version__
-
-        assert __version__ is not None
-        assert isinstance(__version__, str)
-
-    def test_sample_fixture(self, sample_data):
-        """Test sample fixture from conftest."""
-        assert sample_data is not None
-        assert "test" in sample_data
-HEREDOC
-
-          sed -i.bak "s/PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/tests/test_sample.py"
-          rm -f "projects/$PROJECT_NAME/tests/test_sample.py.bak"
+          {
+            echo '"""'
+            echo "Sample tests for $PROJECT_NAME."
+            echo '"""'
+            echo ""
+            echo "import pytest"
+            echo ""
+            echo ""
+            echo "class TestSample:"
+            echo '    """Sample test class."""'
+            echo ""
+            echo "    def test_version_exists(self):"
+            echo '        """Test that version is defined."""'
+            echo "        from $PROJECT_NAME import __version__"
+            echo ""
+            echo "        assert __version__ is not None"
+            echo "        assert isinstance(__version__, str)"
+            echo ""
+            echo "    def test_sample_fixture(self, sample_data):"
+            echo '        """Test sample fixture from conftest."""'
+            echo "        assert sample_data is not None"
+            echo '        assert "test" in sample_data'
+          } > "projects/$PROJECT_NAME/tests/test_sample.py"
 
           echo "✅ Created sample test file"
 
