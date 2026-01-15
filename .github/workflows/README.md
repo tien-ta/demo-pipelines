@@ -12,12 +12,14 @@ This directory contains CI/CD workflows for validating Databricks Asset Bundles.
 
 We have **3 main workflows** that validate different aspects of the codebase:
 
+**Smart Change Detection:** All workflows automatically detect which projects have changes and only run validation for those projects. If you modify only `projects/high_risk_wifi/`, only that project will be validated - `suspicious_location` will be skipped entirely.
+
 ### 1. Validate Databricks Bundles (`validate-bundles.yml`)
 
 **Trigger:** Pull requests that modify files in `projects/`
 
 **What it does:**
-- Detects which projects have changes
+- Detects which projects have changes (skips unchanged projects)
 - Validates bundle configuration for all environments (dev/staging/prod)
 - Checks Python package builds
 - Validates Python notebook syntax
@@ -40,9 +42,10 @@ We have **3 main workflows** that validate different aspects of the codebase:
 
 ### 2. Python Tests & Quality (`run-tests.yml`)
 
-**Trigger:** Pull requests that modify Python files in `projects/`
+**Trigger:** Pull requests that modify Python files in `projects/`, or pushes to main/master/develop
 
 **What it does:**
+- Detects which projects have changes (skips unchanged projects)
 - Combines code quality checks AND unit tests in single workflow
 - Checks code formatting with Black
 - Validates import sorting with isort
@@ -73,6 +76,7 @@ We have **3 main workflows** that validate different aspects of the codebase:
 **Trigger:** Pull requests that modify Python files or dependencies
 
 **What it does:**
+- Detects which projects have changes (skips unchanged projects)
 - Scans code for security vulnerabilities with Bandit
 - Checks for hardcoded secrets
 - Scans dependencies for known vulnerabilities

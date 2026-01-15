@@ -25,20 +25,25 @@ jobs:
       - name: Detect changed projects
         id: set-projects
         run: |
-          # Get list of changed files
+          # Get list of changed files in PR
           CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
 
           # Find unique project directories that have changes
           PROJECTS=$(echo "$CHANGED_FILES" | grep '^projects/' | cut -d'/' -f2 | sort -u | jq -R -s -c 'split("\n")[:-1]')
 
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          echo ""
           echo "Changed projects: $PROJECTS"
           echo "projects=$PROJECTS" >> $GITHUB_OUTPUT
 
-          # Check if there are any changes
+          # Check if there are any changes in projects/
           if [ "$PROJECTS" = "[]" ]; then
             echo "has_changes=false" >> $GITHUB_OUTPUT
+            echo "ℹ️ No changes detected in projects/ directory"
           else
             echo "has_changes=true" >> $GITHUB_OUTPUT
+            echo "✅ Will validate $(echo $PROJECTS | jq '. | length') project(s)"
           fi
 
   validate-bundle:

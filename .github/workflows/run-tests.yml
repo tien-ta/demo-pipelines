@@ -35,17 +35,21 @@ jobs:
       - name: Detect projects with changes
         id: set-projects
         run: |
-          # Default to all projects if on main/master/develop
+          # Get changed files (works for both PR and push events)
           if [[ "${{ github.event_name }}" == "push" ]]; then
-            PROJECTS='["high_risk_wifi","suspicious_location"]'
+            # Compare with previous commit
+            CHANGED_FILES=$(git diff --name-only HEAD^..HEAD)
           else
-            # Get changed files in PR
+            # Compare with base branch for PRs
             CHANGED_FILES=$(git diff --name-only origin/${{ github.base_ref }}...HEAD)
-
-            # Find unique project directories
-            PROJECTS=$(echo "$CHANGED_FILES" | grep '^projects/' | cut -d'/' -f2 | sort -u | jq -R -s -c 'split("\n")[:-1]')
           fi
 
+          # Find unique project directories that have changes
+          PROJECTS=$(echo "$CHANGED_FILES" | grep '^projects/' | cut -d'/' -f2 | sort -u | jq -R -s -c 'split("\n")[:-1]')
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          echo ""
           echo "Projects to test: $PROJECTS"
           echo "projects=$PROJECTS" >> $GITHUB_OUTPUT
 
