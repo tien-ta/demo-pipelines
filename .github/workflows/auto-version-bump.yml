@@ -144,14 +144,14 @@ jobs:
           BUMPED="${{ steps.bump-versions.outputs.bumped_projects }}"
           PR_NUMBER="${{ github.event.pull_request.number }}"
 
-          cat > /tmp/pr-comment.md <<EOF
-## 🔢 Auto Version Bump
-
-The following project versions have been automatically incremented:
-$BUMPED
-
-This commit will be included when the PR is merged and will trigger automatic tagging.
-EOF
+          {
+            echo "## 🔢 Auto Version Bump"
+            echo ""
+            echo "The following project versions have been automatically incremented:"
+            echo "$BUMPED"
+            echo ""
+            echo "This commit will be included when the PR is merged and will trigger automatic tagging."
+          } > /tmp/pr-comment.md
 
           gh pr comment "$PR_NUMBER" --body-file /tmp/pr-comment.md
 
