@@ -1,0 +1,83 @@
+name: Auto Tag Projects
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'projects/**'
+
+jobs:
+  tag-projects:
+    name: Create Tags for Changed Projects
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed projects and create tags
+        run: |
+          # Get changed files in the push
+          CHANGED_FILES=$(git diff --name-only HEAD^..HEAD)
+
+          echo "Changed files:"
+          echo "$CHANGED_FILES"
+          echo ""
+
+          # Find unique project directories that have changes
+          CHANGED_PROJECTS=$(echo "$CHANGED_FILES" | grep '^projects/' | cut -d'/' -f2 | sort -u)
+
+          if [ -z "$CHANGED_PROJECTS" ]; then
+            echo "No project changes detected"
+            exit 0
+          fi
+
+          echo "Changed projects:"
+          echo "$CHANGED_PROJECTS"
+          echo ""
+
+          # Process each changed project
+          for project in $CHANGED_PROJECTS; do
+            echo "Processing project: $project"
+
+            # Check if project has __init__.py with version
+            INIT_FILE="projects/$project/src/__init__.py"
+            if [ ! -f "$INIT_FILE" ]; then
+              echo "⚠️  Warning: $INIT_FILE not found, skipping tagging"
+              continue
+            fi
+
+            # Extract version from __init__.py
+            VERSION=$(grep -E "^__version__\s*=\s*['\"]([^'\"]+)['\"]" "$INIT_FILE" | sed -E "s/^__version__\s*=\s*['\"]([^'\"]+)['\"].*/\1/")
+
+            if [ -z "$VERSION" ]; then
+              echo "⚠️  Warning: Could not extract version from $INIT_FILE, skipping tagging"
+              continue
+            fi
+
+            # Create tag name
+            TAG_NAME="${project}-${VERSION}"
+
+            echo "Creating tag: $TAG_NAME"
+
+            # Check if tag already exists
+            if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then
+              echo "ℹ️  Tag $TAG_NAME already exists, skipping"
+              continue
+            fi
+
+            # Create and push the tag
+            git tag -a "$TAG_NAME" -m "Release $project version $VERSION"
+            git push origin "$TAG_NAME"
+
+            echo "✅ Successfully created and pushed tag: $TAG_NAME"
+            echo ""
+          done
+
+          echo "Tagging complete"
