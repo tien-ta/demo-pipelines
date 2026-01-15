@@ -60,7 +60,7 @@ We have **3 main workflows** that validate different aspects of the codebase:
 
 **Benefits:**
 - Single workflow = no duplicate dependency installation
-- Runs on Python 3.10 and 3.11
+- Runs on Python 3.10
 - Comprehensive quality gate before merge
 
 **Outputs:**
