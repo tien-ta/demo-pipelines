@@ -3,9 +3,16 @@ name: Deploy Databricks Bundle
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Git tag to deploy (e.g., high_risk_wifi-0.1.1)'
+      project:
+        description: 'Project to deploy'
         required: true
+        type: choice
+        options:
+          - high_risk_wifi
+          - suspicious_location
+      tag:
+        description: 'Git tag to deploy (optional, leave empty to deploy from current branch)'
+        required: false
         type: string
       environment:
         description: 'Target environment'
@@ -23,41 +30,84 @@ on:
 
 jobs:
   deploy:
-    name: Deploy ${{ inputs.tag }} to ${{ inputs.environment }}
+    name: Deploy ${{ inputs.project }} to ${{ inputs.environment }}
     runs-on: ubuntu-latest
     environment: ${{ inputs.environment }}
 
     steps:
-      - name: Validate tag format
-        id: parse-tag
+      - name: Determine deployment source
+        id: deploy-source
         run: |
+          PROJECT="${{ inputs.project }}"
           TAG="${{ inputs.tag }}"
 
-          # Extract project name and version from tag (format: project-version)
-          if [[ ! "$TAG" =~ ^([a-z_]+)-([0-9]+\.[0-9]+\.[0-9]+.*)$ ]]; then
-            echo "❌ Error: Tag must be in format <project-name>-<version> (e.g., high_risk_wifi-0.1.1)"
+          if [ -n "$TAG" ]; then
+            # Tag provided - extract version from tag
+            if [[ ! "$TAG" =~ ^([a-z_]+)-([0-9]+\.[0-9]+\.[0-9]+.*)$ ]]; then
+              echo "❌ Error: Tag must be in format <project-name>-<version> (e.g., high_risk_wifi-0.1.1)"
+              exit 1
+            fi
+
+            TAG_PROJECT="${BASH_REMATCH[1]}"
+            VERSION="${BASH_REMATCH[2]}"
+
+            # Verify tag matches selected project
+            if [ "$TAG_PROJECT" != "$PROJECT" ]; then
+              echo "❌ Error: Tag project '$TAG_PROJECT' does not match selected project '$PROJECT'"
+              exit 1
+            fi
+
+            echo "ref=$TAG" >> $GITHUB_OUTPUT
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
+            echo "source=tag" >> $GITHUB_OUTPUT
+
+            echo "✅ Deploying from tag:"
+            echo "  Project: $PROJECT"
+            echo "  Tag: $TAG"
+            echo "  Version: $VERSION"
+          else
+            # No tag - deploy from current branch, read version from version.yml
+            echo "ref=${{ github.ref }}" >> $GITHUB_OUTPUT
+            echo "source=branch" >> $GITHUB_OUTPUT
+
+            echo "✅ Deploying from current branch:"
+            echo "  Project: $PROJECT"
+            echo "  Branch: ${{ github.ref_name }}"
+          fi
+
+          echo "project=$PROJECT" >> $GITHUB_OUTPUT
+
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.deploy-source.outputs.ref }}
+          fetch-depth: 0
+
+      - name: Get version from version.yml
+        if: steps.deploy-source.outputs.source == 'branch'
+        id: get-version
+        run: |
+          PROJECT="${{ steps.deploy-source.outputs.project }}"
+          VERSION_FILE="projects/$PROJECT/version.yml"
+
+          if [ ! -f "$VERSION_FILE" ]; then
+            echo "❌ Error: $VERSION_FILE not found"
             exit 1
           fi
 
-          PROJECT="${BASH_REMATCH[1]}"
-          VERSION="${BASH_REMATCH[2]}"
+          VERSION=$(grep -E "^\s+code:\s+" "$VERSION_FILE" | sed -E 's/.*code:\s+"([^"]+)".*/\1/')
 
-          echo "project=$PROJECT" >> $GITHUB_OUTPUT
+          if [ -z "$VERSION" ]; then
+            echo "❌ Error: Could not extract version from $VERSION_FILE"
+            exit 1
+          fi
+
           echo "version=$VERSION" >> $GITHUB_OUTPUT
-
-          echo "✅ Parsed tag successfully:"
-          echo "  Project: $PROJECT"
-          echo "  Version: $VERSION"
-
-      - name: Checkout code at tag
-        uses: actions/checkout@v4
-        with:
-          ref: ${{ inputs.tag }}
-          fetch-depth: 0
+          echo "Version from version.yml: $VERSION"
 
       - name: Verify project exists
         run: |
-          PROJECT="${{ steps.parse-tag.outputs.project }}"
+          PROJECT="${{ steps.deploy-source.outputs.project }}"
 
           if [ ! -d "projects/$PROJECT" ]; then
             echo "❌ Error: Project directory 'projects/$PROJECT' does not exist"
@@ -83,27 +133,28 @@ jobs:
           echo "✓ Databricks CLI installed (dry-run mode)"
 
       - name: Build Python package
-        working-directory: projects/${{ steps.parse-tag.outputs.project }}
-        if: hashFiles('projects/${{ steps.parse-tag.outputs.project }}/setup.py') != ''
+        working-directory: projects/${{ steps.deploy-source.outputs.project }}
+        if: hashFiles('projects/${{ steps.deploy-source.outputs.project }}/setup.py') != ''
         run: |
-          echo "Building Python package for ${{ steps.parse-tag.outputs.project }}"
+          echo "Building Python package for ${{ steps.deploy-source.outputs.project }}"
           echo "Running: pip install --upgrade pip build"
           echo "Running: python -m build --wheel --outdir dist/"
           echo "✓ Python package built successfully (dry-run mode)"
 
       - name: Validate bundle
-        working-directory: projects/${{ steps.parse-tag.outputs.project }}
+        working-directory: projects/${{ steps.deploy-source.outputs.project }}
         run: |
-          echo "Validating Databricks bundle for ${{ steps.parse-tag.outputs.project }}"
+          echo "Validating Databricks bundle for ${{ steps.deploy-source.outputs.project }}"
           echo "Target: ${{ inputs.environment }}"
           echo "Running: databricks bundle validate -t ${{ inputs.environment }}"
           echo "✓ Bundle validation successful (dry-run mode)"
 
       - name: Deploy bundle
         if: inputs.dry_run == false
-        working-directory: projects/${{ steps.parse-tag.outputs.project }}
+        working-directory: projects/${{ steps.deploy-source.outputs.project }}
         run: |
-          echo "Deploying ${{ steps.parse-tag.outputs.project }} version ${{ steps.parse-tag.outputs.version }}"
+          VERSION="${{ steps.deploy-source.outputs.version }}${{ steps.get-version.outputs.version }}"
+          echo "Deploying ${{ steps.deploy-source.outputs.project }} version $VERSION"
           echo "Environment: ${{ inputs.environment }}"
           echo "Running: databricks bundle deploy -t ${{ inputs.environment }}"
           echo "✓ Bundle deployed successfully (dry-run mode)"
@@ -111,12 +162,19 @@ jobs:
       - name: Dry run summary
         if: inputs.dry_run == true
         run: |
+          VERSION="${{ steps.deploy-source.outputs.version }}${{ steps.get-version.outputs.version }}"
+          SOURCE="${{ steps.deploy-source.outputs.source }}"
+
           echo "## 🔍 Dry Run Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Deployment would have been performed with:**" >> $GITHUB_STEP_SUMMARY
-          echo "- **Project:** ${{ steps.parse-tag.outputs.project }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version:** ${{ steps.parse-tag.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tag:** ${{ inputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Project:** ${{ steps.deploy-source.outputs.project }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** $VERSION" >> $GITHUB_STEP_SUMMARY
+          if [ "$SOURCE" = "tag" ]; then
+            echo "- **Source:** Tag (${{ inputs.tag }})" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Source:** Branch (${{ github.ref_name }})" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "- **Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "ℹ️ No actual deployment occurred (dry_run=true)" >> $GITHUB_STEP_SUMMARY
@@ -126,12 +184,19 @@ jobs:
       - name: Deployment summary
         if: inputs.dry_run == false
         run: |
+          VERSION="${{ steps.deploy-source.outputs.version }}${{ steps.get-version.outputs.version }}"
+          SOURCE="${{ steps.deploy-source.outputs.source }}"
+
           echo "## ✅ Deployment Summary" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Successfully deployed:**" >> $GITHUB_STEP_SUMMARY
-          echo "- **Project:** ${{ steps.parse-tag.outputs.project }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Version:** ${{ steps.parse-tag.outputs.version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Tag:** ${{ inputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Project:** ${{ steps.deploy-source.outputs.project }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** $VERSION" >> $GITHUB_STEP_SUMMARY
+          if [ "$SOURCE" = "tag" ]; then
+            echo "- **Source:** Tag (${{ inputs.tag }})" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Source:** Branch (${{ github.ref_name }})" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "- **Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Deployed at:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
