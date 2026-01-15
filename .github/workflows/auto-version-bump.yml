@@ -55,6 +55,7 @@ jobs:
           echo "has_changes=true" >> $GITHUB_OUTPUT
 
       - name: Bump versions
+        id: bump-versions
         if: steps.detect-changes.outputs.has_changes == 'true'
         run: |
           PROJECTS='${{ steps.detect-changes.outputs.projects }}'
@@ -128,11 +129,10 @@ jobs:
         if: steps.check-changes.outputs.has_version_changes == 'true'
         run: |
           git add projects/*/version.yml projects/*/src/__init__.py
-          git commit -m "chore: auto-bump project versions
 
-Automatically incremented patch version for changed projects.
-
-Co-Authored-By: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+          git commit -m "chore: auto-bump project versions" \
+            -m "Automatically incremented patch version for changed projects." \
+            -m "Co-Authored-By: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
 
           git push
 
