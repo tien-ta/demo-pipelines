@@ -85,13 +85,12 @@ jobs:
             fi
 
             # Create and push the tag with detailed message
-            TAG_MESSAGE="Release $project version $VERSION
+            git tag -a "$TAG_NAME" \
+              -m "Release $project version $VERSION" \
+              -m "Code Version: $VERSION" \
+              -m "Model Name: $MODEL_NAME" \
+              -m "Model Version: $MODEL_VERSION"
 
-Code Version: $VERSION
-Model Name: $MODEL_NAME
-Model Version: $MODEL_VERSION"
-
-            git tag -a "$TAG_NAME" -m "$TAG_MESSAGE"
             git push origin "$TAG_NAME"
 
             echo "✅ Successfully created and pushed tag: $TAG_NAME"
