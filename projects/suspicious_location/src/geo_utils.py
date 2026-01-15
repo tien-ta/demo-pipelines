@@ -1,5 +1,7 @@
 """
-Geographic utility functions.
+Geographic utility functions for suspicious location detection.
+
+This module provides geospatial calculations for location analysis.
 """
 
 import math
