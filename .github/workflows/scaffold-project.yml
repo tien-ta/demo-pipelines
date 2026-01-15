@@ -223,7 +223,7 @@ jobs:
           # Convert underscores to hyphens for bundle name
           BUNDLE_NAME=$(echo "$PROJECT_NAME" | tr '_' '-')
 
-          python3 - <<PYSCRIPT
+          cat > /tmp/create_databricks.py << 'PYSCRIPT'
 import os
 project_name = os.environ['PROJECT_NAME']
 bundle_name = os.environ['BUNDLE_NAME']
@@ -309,6 +309,7 @@ with open(f"projects/{project_name}/databricks.yml", "w") as f:
     f.write(content)
 PYSCRIPT
 
+          python3 /tmp/create_databricks.py
           echo "✅ Created databricks.yml"
 
       - name: Create resource files
@@ -359,7 +360,7 @@ PYSCRIPT
           PROJECT_DESC="${{ inputs.project_description }}"
           DISPLAY_NAME=$(echo "$PROJECT_NAME" | tr '_' ' ' | sed 's/\b\(.\)/\u\1/g')
 
-          python3 - <<PYEOF
+          cat > /tmp/create_readme.py << 'PYEOF'
 import os
 project_name = os.environ['PROJECT_NAME']
 project_desc = os.environ['PROJECT_DESC']
@@ -458,6 +459,7 @@ with open(f"projects/{project_name}/README.md", "w") as f:
     f.write(content)
 PYEOF
 
+          python3 /tmp/create_readme.py
           echo "✅ Created README.md"
 
       - name: Create sample test file
