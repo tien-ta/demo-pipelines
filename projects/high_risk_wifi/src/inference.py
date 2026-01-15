@@ -22,6 +22,7 @@ class WiFiRiskInference:
             model_stage: Model stage (Production, Staging, None)
         """
         self.model_name = model_name
+        self.abc = 1
         self.model_stage = model_stage
         self.model_uri = f"models:/{model_name}/{model_stage}"
 
