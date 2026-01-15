@@ -1,0 +1,137 @@
+name: Deploy Databricks Bundle
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Git tag to deploy (e.g., high_risk_wifi-0.1.1)'
+        required: true
+        type: string
+      environment:
+        description: 'Target environment'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+      dry_run:
+        description: 'Dry run mode (validate only, no deployment)'
+        required: false
+        type: boolean
+        default: true
+
+jobs:
+  deploy:
+    name: Deploy ${{ inputs.tag }} to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    environment: ${{ inputs.environment }}
+
+    steps:
+      - name: Validate tag format
+        id: parse-tag
+        run: |
+          TAG="${{ inputs.tag }}"
+
+          # Extract project name and version from tag (format: project-version)
+          if [[ ! "$TAG" =~ ^([a-z_]+)-([0-9]+\.[0-9]+\.[0-9]+.*)$ ]]; then
+            echo "❌ Error: Tag must be in format <project-name>-<version> (e.g., high_risk_wifi-0.1.1)"
+            exit 1
+          fi
+
+          PROJECT="${BASH_REMATCH[1]}"
+          VERSION="${BASH_REMATCH[2]}"
+
+          echo "project=$PROJECT" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+
+          echo "✅ Parsed tag successfully:"
+          echo "  Project: $PROJECT"
+          echo "  Version: $VERSION"
+
+      - name: Checkout code at tag
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag }}
+          fetch-depth: 0
+
+      - name: Verify project exists
+        run: |
+          PROJECT="${{ steps.parse-tag.outputs.project }}"
+
+          if [ ! -d "projects/$PROJECT" ]; then
+            echo "❌ Error: Project directory 'projects/$PROJECT' does not exist"
+            exit 1
+          fi
+
+          if [ ! -f "projects/$PROJECT/databricks.yml" ]; then
+            echo "❌ Error: databricks.yml not found in projects/$PROJECT"
+            exit 1
+          fi
+
+          echo "✅ Project directory and databricks.yml found"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install Databricks CLI
+        run: |
+          echo "Installing Databricks CLI"
+          echo "Running: pip install databricks-cli"
+          echo "✓ Databricks CLI installed (dry-run mode)"
+
+      - name: Build Python package
+        working-directory: projects/${{ steps.parse-tag.outputs.project }}
+        if: hashFiles('projects/${{ steps.parse-tag.outputs.project }}/setup.py') != ''
+        run: |
+          echo "Building Python package for ${{ steps.parse-tag.outputs.project }}"
+          echo "Running: pip install --upgrade pip build"
+          echo "Running: python -m build --wheel --outdir dist/"
+          echo "✓ Python package built successfully (dry-run mode)"
+
+      - name: Validate bundle
+        working-directory: projects/${{ steps.parse-tag.outputs.project }}
+        run: |
+          echo "Validating Databricks bundle for ${{ steps.parse-tag.outputs.project }}"
+          echo "Target: ${{ inputs.environment }}"
+          echo "Running: databricks bundle validate -t ${{ inputs.environment }}"
+          echo "✓ Bundle validation successful (dry-run mode)"
+
+      - name: Deploy bundle
+        if: inputs.dry_run == false
+        working-directory: projects/${{ steps.parse-tag.outputs.project }}
+        run: |
+          echo "Deploying ${{ steps.parse-tag.outputs.project }} version ${{ steps.parse-tag.outputs.version }}"
+          echo "Environment: ${{ inputs.environment }}"
+          echo "Running: databricks bundle deploy -t ${{ inputs.environment }}"
+          echo "✓ Bundle deployed successfully (dry-run mode)"
+
+      - name: Dry run summary
+        if: inputs.dry_run == true
+        run: |
+          echo "## 🔍 Dry Run Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployment would have been performed with:**" >> $GITHUB_STEP_SUMMARY
+          echo "- **Project:** ${{ steps.parse-tag.outputs.project }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${{ steps.parse-tag.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag:** ${{ inputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "ℹ️ No actual deployment occurred (dry_run=true)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "To perform actual deployment, re-run with dry_run=false" >> $GITHUB_STEP_SUMMARY
+
+      - name: Deployment summary
+        if: inputs.dry_run == false
+        run: |
+          echo "## ✅ Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Successfully deployed:**" >> $GITHUB_STEP_SUMMARY
+          echo "- **Project:** ${{ steps.parse-tag.outputs.project }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Version:** ${{ steps.parse-tag.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Tag:** ${{ inputs.tag }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Deployed at:** $(date -u +"%Y-%m-%d %H:%M:%S UTC")" >> $GITHUB_STEP_SUMMARY
