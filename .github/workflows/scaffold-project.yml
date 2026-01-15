@@ -84,16 +84,13 @@ jobs:
         run: |
           PROJECT_NAME="${{ inputs.project_name }}"
 
-          cat > "projects/$PROJECT_NAME/version.yml" << 'EOF'
-# Version configuration for PROJECT_NAME_PLACEHOLDER project
-version:
-  code: "0.1.0"
-  model_name: "PROJECT_NAME_PLACEHOLDER_model"
-  model_version: "1.0.0"
-EOF
-
-          sed -i.bak "s/PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/version.yml"
-          rm -f "projects/$PROJECT_NAME/version.yml.bak"
+          {
+            echo "# Version configuration for $PROJECT_NAME project"
+            echo "version:"
+            echo "  code: \"0.1.0\""
+            echo "  model_name: \"${PROJECT_NAME}_model\""
+            echo "  model_version: \"1.0.0\""
+          } > "projects/$PROJECT_NAME/version.yml"
 
           echo "✅ Created version.yml"
 
