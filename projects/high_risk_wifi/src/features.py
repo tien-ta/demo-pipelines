@@ -64,3 +64,32 @@ def extract_signal_features(df: DataFrame) -> DataFrame:
         )
         .withColumn("is_weak_signal", F.when(F.col("signal_strength") < -70, 1).otherwise(0))
     )
+
+
+def calculate_risk_score(signal_quality: int, is_open_network: int, is_wep: int) -> float:
+    """
+    Calculate a simple risk score based on network characteristics.
+
+    Args:
+        signal_quality: Signal quality rating (1-4)
+        is_open_network: 1 if network is open, 0 otherwise
+        is_wep: 1 if network uses WEP, 0 otherwise
+
+    Returns:
+        Risk score between 0 and 1
+    """
+    risk_score = 0.0
+
+    # Open networks increase risk
+    if is_open_network:
+        risk_score += 0.5
+
+    # WEP is insecure
+    if is_wep:
+        risk_score += 0.3
+
+    # Weak signal might indicate spoofing
+    if signal_quality <= 2:
+        risk_score += 0.2
+
+    return min(risk_score, 1.0)

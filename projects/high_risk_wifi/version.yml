@@ -1,5 +1,5 @@
 # Version configuration for high_risk_wifi project
 version:
-  code: "0.1.1"
+  code: "0.1.2"
   model_name: "high_risk_wifi_classifier"
   model_version: "1.0.0"
