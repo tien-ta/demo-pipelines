@@ -1,0 +1,267 @@
+name: Register Model Version
+
+on:
+  workflow_dispatch:
+    inputs:
+      project:
+        description: 'Project to register model for'
+        required: true
+        type: choice
+        options:
+          - high_risk_wifi
+          - suspicious_location
+      run_id:
+        description: 'MLflow run ID to register as model version'
+        required: true
+        type: string
+      update_version_yml:
+        description: 'Update model_version in version.yml with the newly registered version'
+        required: false
+        type: boolean
+        default: false
+      environment:
+        description: 'Target environment (for model registry)'
+        required: true
+        type: choice
+        options:
+          - dev
+          - staging
+          - prod
+
+jobs:
+  register-model:
+    name: Register ${{ inputs.project }} model (Run ${{ inputs.run_id }})
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Verify project configuration
+        id: verify-project
+        run: |
+          PROJECT="${{ inputs.project }}"
+          VERSION_FILE="projects/$PROJECT/version.yml"
+
+          if [ ! -d "projects/$PROJECT" ]; then
+            echo "❌ Error: Project directory 'projects/$PROJECT' does not exist"
+            exit 1
+          fi
+
+          if [ ! -f "$VERSION_FILE" ]; then
+            echo "❌ Error: $VERSION_FILE not found"
+            exit 1
+          fi
+
+          # Extract current model configuration
+          MODEL_NAME=$(grep -E "^\s+model_name:\s+" "$VERSION_FILE" | sed -E 's/.*model_name:\s+"([^"]+)".*/\1/')
+          CURRENT_MODEL_VERSION=$(grep -E "^\s+model_version:\s+" "$VERSION_FILE" | sed -E 's/.*model_version:\s+"([^"]+)".*/\1/')
+
+          if [ -z "$MODEL_NAME" ]; then
+            echo "❌ Error: Could not extract model_name from $VERSION_FILE"
+            exit 1
+          fi
+
+          if [ -z "$CURRENT_MODEL_VERSION" ]; then
+            echo "❌ Error: Could not extract model_version from $VERSION_FILE"
+            exit 1
+          fi
+
+          echo "model_name=$MODEL_NAME" >> $GITHUB_OUTPUT
+          echo "current_model_version=$CURRENT_MODEL_VERSION" >> $GITHUB_OUTPUT
+
+          echo "✅ Project configuration verified:"
+          echo "  Model Name: $MODEL_NAME"
+          echo "  Current Model Version: $CURRENT_MODEL_VERSION"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install MLflow and Databricks CLI
+        run: |
+          echo "Installing MLflow and Databricks CLI"
+          echo "Running: pip install mlflow databricks-cli"
+          echo "✓ MLflow and Databricks CLI installed (demo mode)"
+
+      - name: Register model version from run
+        id: register-model
+        run: |
+          RUN_ID="${{ inputs.run_id }}"
+          MODEL_NAME="${{ steps.verify-project.outputs.model_name }}"
+          ENVIRONMENT="${{ inputs.environment }}"
+
+          echo "========================================="
+          echo "DEMO: Register Model Version"
+          echo "========================================="
+          echo ""
+          echo "Would execute the following steps:"
+          echo ""
+          echo "1. Authenticate with Databricks workspace ($ENVIRONMENT)"
+          echo "   Command: databricks configure --token"
+          echo ""
+          echo "2. Fetch run details from MLflow"
+          echo "   Command: mlflow runs describe --run-id $RUN_ID"
+          echo ""
+          echo "3. Register model from run"
+          echo "   Command: mlflow runs register-model \\"
+          echo "              --run-id $RUN_ID \\"
+          echo "              --model-name $MODEL_NAME"
+          echo ""
+          echo "4. Get the newly created model version number"
+          echo "   Command: mlflow models get-latest-versions \\"
+          echo "              --name $MODEL_NAME \\"
+          echo "              --stages None"
+          echo ""
+
+          # For demo, simulate a new version number
+          CURRENT_VERSION="${{ steps.verify-project.outputs.current_model_version }}"
+
+          # Parse current version and increment
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT_VERSION"
+          NEW_PATCH=$((PATCH + 1))
+          NEW_MODEL_VERSION="$MAJOR.$MINOR.$NEW_PATCH"
+
+          echo "5. Model registered successfully!"
+          echo "   New Model Version: $NEW_MODEL_VERSION (simulated)"
+          echo ""
+          echo "========================================="
+
+          echo "new_model_version=$NEW_MODEL_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Add model version tags
+        run: |
+          MODEL_NAME="${{ steps.verify-project.outputs.model_name }}"
+          NEW_VERSION="${{ steps.register-model.outputs.new_model_version }}"
+          ENVIRONMENT="${{ inputs.environment }}"
+
+          echo "========================================="
+          echo "DEMO: Add Model Version Tags"
+          echo "========================================="
+          echo ""
+          echo "Would execute the following:"
+          echo ""
+          echo "1. Tag model version with metadata"
+          echo "   Command: mlflow models set-tag \\"
+          echo "              --name $MODEL_NAME \\"
+          echo "              --version $NEW_VERSION \\"
+          echo "              --key 'environment' \\"
+          echo "              --value '$ENVIRONMENT'"
+          echo ""
+          echo "   Command: mlflow models set-tag \\"
+          echo "              --name $MODEL_NAME \\"
+          echo "              --version $NEW_VERSION \\"
+          echo "              --key 'registered_by' \\"
+          echo "              --value 'github-actions'"
+          echo ""
+          echo "   Command: mlflow models set-tag \\"
+          echo "              --name $MODEL_NAME \\"
+          echo "              --version $NEW_VERSION \\"
+          echo "              --key 'run_id' \\"
+          echo "              --value '${{ inputs.run_id }}'"
+          echo ""
+          echo "✓ Model version tags added (demo mode)"
+          echo "========================================="
+
+      - name: Configure Git
+        if: inputs.update_version_yml == true
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Update version.yml with new model version
+        if: inputs.update_version_yml == true
+        id: update-version
+        run: |
+          PROJECT="${{ inputs.project }}"
+          VERSION_FILE="projects/$PROJECT/version.yml"
+          CURRENT_VERSION="${{ steps.verify-project.outputs.current_model_version }}"
+          NEW_VERSION="${{ steps.register-model.outputs.new_model_version }}"
+
+          echo "Updating $VERSION_FILE"
+          echo "  Current model_version: $CURRENT_VERSION"
+          echo "  New model_version: $NEW_VERSION"
+
+          # Update model_version in version.yml
+          sed -i.bak "s/model_version: \"$CURRENT_VERSION\"/model_version: \"$NEW_VERSION\"/" "$VERSION_FILE"
+          rm -f "$VERSION_FILE.bak"
+
+          echo "✓ Updated $VERSION_FILE"
+
+          # Check if there are actual changes
+          if git diff --quiet "$VERSION_FILE"; then
+            echo "No changes detected in $VERSION_FILE"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Changes detected in $VERSION_FILE"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit version.yml update
+        if: inputs.update_version_yml == true && steps.update-version.outputs.has_changes == 'true'
+        run: |
+          PROJECT="${{ inputs.project }}"
+          NEW_VERSION="${{ steps.register-model.outputs.new_model_version }}"
+
+          git add "projects/$PROJECT/version.yml"
+
+          git commit -m "chore: update $PROJECT model_version to $NEW_VERSION" \
+            -m "Registered new model version from MLflow run ${{ inputs.run_id }}" \
+            -m "Environment: ${{ inputs.environment }}" \
+            -m "" \
+            -m "Co-Authored-By: github-actions[bot] <github-actions[bot]@users.noreply.github.com>"
+
+          git push
+
+          echo "✓ Committed and pushed version.yml update"
+
+      - name: Create workflow summary
+        run: |
+          MODEL_NAME="${{ steps.verify-project.outputs.model_name }}"
+          NEW_VERSION="${{ steps.register-model.outputs.new_model_version }}"
+          UPDATE_YML="${{ inputs.update_version_yml }}"
+
+          echo "## 🎯 Model Registration Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Model registered successfully (demo mode):**" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **Project:** ${{ inputs.project }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Model Name:** $MODEL_NAME" >> $GITHUB_STEP_SUMMARY
+          echo "- **MLflow Run ID:** ${{ inputs.run_id }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **New Model Version:** $NEW_VERSION" >> $GITHUB_STEP_SUMMARY
+          echo "- **Environment:** ${{ inputs.environment }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$UPDATE_YML" = "true" ]; then
+            if [ "${{ steps.update-version.outputs.has_changes }}" = "true" ]; then
+              echo "✅ **version.yml updated** with new model version" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "ℹ️ **version.yml** already up-to-date (no changes needed)" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "ℹ️ **version.yml not updated** (update_version_yml=false)" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "---" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📋 Steps Executed (Demo Mode)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "This workflow demonstrated the following operations:" >> $GITHUB_STEP_SUMMARY
+          echo "1. ✓ Verified project configuration" >> $GITHUB_STEP_SUMMARY
+          echo "2. ✓ Simulated model registration from run \`${{ inputs.run_id }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "3. ✓ Simulated adding metadata tags to model version" >> $GITHUB_STEP_SUMMARY
+
+          if [ "$UPDATE_YML" = "true" ]; then
+            echo "4. ✓ Updated version.yml with new model version" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "> **Note:** This is a demo workflow. In production, this would execute actual Databricks/MLflow commands." >> $GITHUB_STEP_SUMMARY
