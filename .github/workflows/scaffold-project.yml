@@ -86,39 +86,33 @@ jobs:
           PROJECT_DESC="${{ inputs.project_description }}"
 
           # Create src/__init__.py
-          cat > "projects/$PROJECT_NAME/src/__init__.py" << 'EOF'
-"""
-$PROJECT_DESC_PLACEHOLDER
+          cat > "projects/$PROJECT_NAME/src/__init__.py" << EOF
+\"\"\"
+$PROJECT_DESC
 
-This package contains utilities and code for the $PROJECT_NAME_PLACEHOLDER project.
-"""
+This package contains utilities and code for the $PROJECT_NAME project.
+\"\"\"
 
 __version__ = "0.1.0"
 EOF
-
-          # Replace placeholders
-          sed -i "s/\$PROJECT_DESC_PLACEHOLDER/$PROJECT_DESC/g" "projects/$PROJECT_NAME/src/__init__.py"
-          sed -i "s/\$PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/src/__init__.py"
 
           # Create tests/__init__.py
           touch "projects/$PROJECT_NAME/tests/__init__.py"
 
           # Create tests/conftest.py
-          cat > "projects/$PROJECT_NAME/tests/conftest.py" << 'EOF'
-"""
-Pytest configuration and fixtures for $PROJECT_NAME_PLACEHOLDER tests.
-"""
+          cat > "projects/$PROJECT_NAME/tests/conftest.py" << EOF
+\"\"\"
+Pytest configuration and fixtures for $PROJECT_NAME tests.
+\"\"\"
 
 import pytest
 
 
 @pytest.fixture
 def sample_data():
-    """Fixture for sample test data."""
+    \"\"\"Fixture for sample test data.\"\"\"
     return {"test": "data"}
 EOF
-
-          sed -i "s/\$PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/tests/conftest.py"
 
           echo "✅ Created Python package files"
 
@@ -127,17 +121,17 @@ EOF
           PROJECT_NAME="${{ inputs.project_name }}"
           PROJECT_DESC="${{ inputs.project_description }}"
 
-          cat > "projects/$PROJECT_NAME/setup.py" << 'EOF'
-"""
-Setup configuration for $PROJECT_NAME_PLACEHOLDER package.
-"""
+          cat > "projects/$PROJECT_NAME/setup.py" << EOF
+\"\"\"
+Setup configuration for $PROJECT_NAME package.
+\"\"\"
 
 from setuptools import setup, find_packages
 
 setup(
-    name="$PROJECT_NAME_PLACEHOLDER",
+    name="$PROJECT_NAME",
     version="0.1.0",
-    description="$PROJECT_DESC_PLACEHOLDER",
+    description="$PROJECT_DESC",
     author="Data Science Team",
     packages=find_packages(),
     install_requires=[
@@ -149,9 +143,6 @@ setup(
 )
 EOF
 
-          sed -i "s/\$PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/setup.py"
-          sed -i "s/\$PROJECT_DESC_PLACEHOLDER/$PROJECT_DESC/g" "projects/$PROJECT_NAME/setup.py"
-
           echo "✅ Created setup.py"
 
       - name: Create requirements-dev.txt
@@ -159,7 +150,7 @@ EOF
           PROJECT_NAME="${{ inputs.project_name }}"
 
           cat > "projects/$PROJECT_NAME/requirements-dev.txt" << 'EOF'
-# Development dependencies for $PROJECT_NAME_PLACEHOLDER project
+# Development dependencies
 
 # Testing
 pytest>=7.4.0
@@ -186,8 +177,6 @@ pyspark>=3.5.0
 pandas>=2.0.0
 numpy>=1.24.0
 EOF
-
-          sed -i "s/\$PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/requirements-dev.txt"
 
           echo "✅ Created requirements-dev.txt"
 
@@ -451,34 +440,29 @@ EOF
         run: |
           PROJECT_NAME="${{ inputs.project_name }}"
 
-          cat > "projects/$PROJECT_NAME/tests/test_sample.py" << 'EOF'
-"""
-Sample tests for $PROJECT_NAME_PLACEHOLDER.
-"""
+          cat > "projects/$PROJECT_NAME/tests/test_sample.py" << EOF
+\"\"\"
+Sample tests for $PROJECT_NAME.
+\"\"\"
 
 import pytest
 
 
 class TestSample:
-    """Sample test class."""
+    \"\"\"Sample test class.\"\"\"
 
     def test_version_exists(self):
-        """Test that version is defined."""
-        from $MODULE_NAME_PLACEHOLDER import __version__
+        \"\"\"Test that version is defined.\"\"\"
+        from $PROJECT_NAME import __version__
 
         assert __version__ is not None
         assert isinstance(__version__, str)
 
     def test_sample_fixture(self, sample_data):
-        """Test sample fixture from conftest."""
+        \"\"\"Test sample fixture from conftest.\"\"\"
         assert sample_data is not None
         assert "test" in sample_data
 EOF
-
-          # Convert project name to module name (same, just for clarity)
-          MODULE_NAME="$PROJECT_NAME"
-          sed -i "s/\$PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/tests/test_sample.py"
-          sed -i "s/\$MODULE_NAME_PLACEHOLDER/$MODULE_NAME/g" "projects/$PROJECT_NAME/tests/test_sample.py"
 
           echo "✅ Created sample test file"
 
@@ -517,37 +501,38 @@ Co-Authored-By: github-actions[bot] <github-actions[bot]@users.noreply.github.co
           GH_TOKEN: ${{ github.token }}
         run: |
           PROJECT_NAME="${{ inputs.project_name }}"
+          PROJECT_DESC="${{ inputs.project_description }}"
+          PROJECT_TYPE="${{ inputs.project_type }}"
           BRANCH_NAME="${{ steps.commit.outputs.branch }}"
 
           gh pr create \
             --title "Add new project: $PROJECT_NAME" \
-            --body "$(cat <<'EOF'
-## New Project Scaffolded
+            --body "## New Project Scaffolded
 
-**Project Name:** $PROJECT_NAME_PLACEHOLDER
-**Description:** $PROJECT_DESC_PLACEHOLDER
-**Type:** $PROJECT_TYPE_PLACEHOLDER
+**Project Name:** $PROJECT_NAME
+**Description:** $PROJECT_DESC
+**Type:** $PROJECT_TYPE
 
 ### What's Included
 
 This PR adds a complete project structure with:
 
-- ✅ Python package structure (`src/`, `tests/`)
-- ✅ Databricks bundle configuration (`databricks.yml`)
+- ✅ Python package structure (\`src/\`, \`tests/\`)
+- ✅ Databricks bundle configuration (\`databricks.yml\`)
 - ✅ Resource definitions (jobs, pipelines, experiments, models, serving)
-- ✅ Development dependencies (`requirements-dev.txt`)
-- ✅ Testing configuration (`pytest.ini`)
-- ✅ Package setup (`setup.py`)
-- ✅ Documentation (`README.md`)
+- ✅ Development dependencies (\`requirements-dev.txt\`)
+- ✅ Testing configuration (\`pytest.ini\`)
+- ✅ Package setup (\`setup.py\`)
+- ✅ Documentation (\`README.md\`)
 - ✅ Sample test file
 
 ### Next Steps
 
 1. Review the generated structure
-2. Update `databricks.yml` with actual workspace URLs
-3. Add your notebooks to `notebooks/`
-4. Add your source code to `src/`
-5. Update resource definitions in `resources/`
+2. Update \`databricks.yml\` with actual workspace URLs
+3. Add your notebooks to \`notebooks/\`
+4. Add your source code to \`src/\`
+5. Update resource definitions in \`resources/\`
 6. Update README with project-specific details
 
 ### Deployment
@@ -556,16 +541,9 @@ Once merged, the project will be:
 - Validated by CI/CD on future changes
 - Available for bundle deployment with tags
 
-🤖 Generated with GitHub Actions
-EOF
-)" \
+🤖 Generated with GitHub Actions" \
             --head "$BRANCH_NAME" \
             --base master
-
-          # Replace placeholders in PR body
-          sed -i "s/\$PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" || true
-          sed -i "s/\$PROJECT_DESC_PLACEHOLDER/${{ inputs.project_description }}/g" || true
-          sed -i "s/\$PROJECT_TYPE_PLACEHOLDER/${{ inputs.project_type }}/g" || true
 
           echo "✅ Created pull request"
 
