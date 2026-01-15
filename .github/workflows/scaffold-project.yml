@@ -163,7 +163,7 @@ jobs:
         run: |
           PROJECT_NAME="${{ inputs.project_name }}"
 
-          cat > "projects/$PROJECT_NAME/requirements-dev.txt" << 'EOF'
+          cat > "projects/$PROJECT_NAME/requirements-dev.txt" <<'HEREDOC'
 # Development dependencies
 
 # Testing
@@ -190,7 +190,7 @@ pyspark>=3.5.0
 # Data science
 pandas>=2.0.0
 numpy>=1.24.0
-EOF
+HEREDOC
 
           echo "✅ Created requirements-dev.txt"
 
@@ -198,7 +198,7 @@ EOF
         run: |
           PROJECT_NAME="${{ inputs.project_name }}"
 
-          cat > "projects/$PROJECT_NAME/pytest.ini" << 'EOF'
+          cat > "projects/$PROJECT_NAME/pytest.ini" <<'HEREDOC'
 [pytest]
 testpaths = tests
 python_files = test_*.py
@@ -213,7 +213,7 @@ markers =
     unit: Unit tests
     integration: Integration tests
     slow: Slow running tests
-EOF
+HEREDOC
 
           echo "✅ Created pytest.ini"
 
@@ -225,7 +225,7 @@ EOF
           # Convert underscores to hyphens for bundle name
           BUNDLE_NAME=$(echo "$PROJECT_NAME" | tr '_' '-')
 
-          cat > "projects/$PROJECT_NAME/databricks.yml" << 'EOF'
+          cat > "projects/$PROJECT_NAME/databricks.yml" <<'HEREDOC'
 # Databricks Asset Bundle configuration for $PROJECT_NAME_PLACEHOLDER project
 bundle:
   name: $BUNDLE_NAME_PLACEHOLDER
@@ -301,7 +301,7 @@ permissions:
 
   - level: CAN_VIEW
     group_name: analytics-team
-EOF
+HEREDOC
 
           sed -i "s/\$PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/databricks.yml"
           sed -i "s/\$BUNDLE_NAME_PLACEHOLDER/$BUNDLE_NAME/g" "projects/$PROJECT_NAME/databricks.yml"
@@ -313,40 +313,40 @@ EOF
           PROJECT_NAME="${{ inputs.project_name }}"
 
           # Create empty resource files
-          cat > "projects/$PROJECT_NAME/resources/jobs.yml" << 'EOF'
+          cat > "projects/$PROJECT_NAME/resources/jobs.yml" <<'HEREDOC'
 # Databricks Jobs resources
 resources:
   jobs:
     # Add your job definitions here
-EOF
+HEREDOC
 
-          cat > "projects/$PROJECT_NAME/resources/pipelines.yml" << 'EOF'
+          cat > "projects/$PROJECT_NAME/resources/pipelines.yml" <<'HEREDOC'
 # Delta Live Tables pipelines
 resources:
   pipelines:
     # Add your DLT pipeline definitions here
-EOF
+HEREDOC
 
-          cat > "projects/$PROJECT_NAME/resources/experiments.yml" << 'EOF'
+          cat > "projects/$PROJECT_NAME/resources/experiments.yml" <<'HEREDOC'
 # MLflow Experiments
 resources:
   experiments:
     # Add your experiment definitions here
-EOF
+HEREDOC
 
-          cat > "projects/$PROJECT_NAME/resources/models.yml" << 'EOF'
+          cat > "projects/$PROJECT_NAME/resources/models.yml" <<'HEREDOC'
 # MLflow Models
 resources:
   registered_models:
     # Add your model registry definitions here
-EOF
+HEREDOC
 
-          cat > "projects/$PROJECT_NAME/resources/model_serving.yml" << 'EOF'
+          cat > "projects/$PROJECT_NAME/resources/model_serving.yml" <<'HEREDOC'
 # Model Serving Endpoints
 resources:
   model_serving_endpoints:
     # Add your serving endpoint definitions here
-EOF
+HEREDOC
 
           echo "✅ Created resource files"
 
@@ -356,7 +356,7 @@ EOF
           PROJECT_DESC="${{ inputs.project_description }}"
           DISPLAY_NAME=$(echo "$PROJECT_NAME" | tr '_' ' ' | sed 's/\b\(.\)/\u\1/g')
 
-          cat > "projects/$PROJECT_NAME/README.md" << 'EOF'
+          cat > "projects/$PROJECT_NAME/README.md" <<'HEREDOC'
 # $DISPLAY_NAME_PLACEHOLDER
 
 Databricks Asset Bundle for $PROJECT_DESC_PLACEHOLDER.
@@ -443,7 +443,7 @@ Current version: 0.1.0
 - Databricks Runtime 14.3 LTS or higher
 - Unity Catalog enabled
 - Python 3.10+
-EOF
+HEREDOC
 
           sed -i "s/\$PROJECT_NAME_PLACEHOLDER/$PROJECT_NAME/g" "projects/$PROJECT_NAME/README.md"
           sed -i "s/\$PROJECT_DESC_PLACEHOLDER/$PROJECT_DESC/g" "projects/$PROJECT_NAME/README.md"
